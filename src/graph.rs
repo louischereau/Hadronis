@@ -127,7 +127,6 @@ impl MolecularGraph {
         num_offsets: usize,
     ) -> Vec<DVector<f32>> {
         let aggregated_results = self.compute_core_fused(cutoff, num_offsets, atom_view);
-
         aggregated_results
             .into_iter()
             .map(|agg| &model.weights * agg)
