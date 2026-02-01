@@ -66,7 +66,7 @@ build-native:
 # Audit the Fused Kernel (The method name changed to run_fused_with_model)
 audit-asm:
 	@echo "Searching for SIMD vectors in the fused kernel..."
-	RUSTFLAGS="-C target-cpu=native" $(CARGO) asm valence::graph::MolecularGraph::run_fused_with_model | grep -E "vaddps|vmulps|ymm|zmm" || echo "No SIMD detected."
+	RUSTFLAGS="-C target-cpu=native" $(CARGO) asm valence::graph::MolecularGraph::run_fused_with_model_internal | grep -E "vaddps|vmulps|ymm|zmm" || echo "No SIMD detected."
 
 sample:
 	@samply record $(shell ls target/release/deps/molecular_bench-*) --bench
