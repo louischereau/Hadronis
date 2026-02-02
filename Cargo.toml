@@ -37,6 +37,13 @@ debug = true
 force-frame-pointers = true
 lto = "thin"
 
+
+[profile.bench]
+inherits = "release"
+lto = "thin"          # Link Time Optimization: merges units for better inlining
+codegen-units = 1     # Slower build, but results in faster code
+debug = true          # Keep symbols so Flamegraph/Tracy can see function names
+
 [[example]]
 name = "profile_engine"
 path = "examples/profile_engine.rs"

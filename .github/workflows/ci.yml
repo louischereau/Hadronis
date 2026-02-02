@@ -6,8 +6,13 @@ on:
   pull_request:
     branches: [ main ]
 
+# Ensure only one CI run happens per PR at a time to save resources
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check-and-test:
+  check-and-lint:
     if : github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -25,11 +30,13 @@ jobs:
           enable-cache: true      # Automatically caches your Python dependencies
           version: "latest"
 
+      - uses: Swatinem/rust-cache@v2 # Add this to speed up everything
+
       # 3. Rust Quality Checks
       - name: Rust Format & Lint
         run: |
           cargo fmt --all -- --check
-          cargo clippy -- -D warnings
+          cargo clippy --all-targets -- -D warnings -D clippy::pedantic
 
       # 4. Python Quality Checks (Using uv run)
       - name: Python Linting & Format Check
@@ -37,12 +44,21 @@ jobs:
           uv run ruff check python/
           uv run ruff format --check python/
 
-      # 5. Build and Test
+  test:
+    needs: check-and-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v5
+      - uses: Swatinem/rust-cache@v2
+
       - name: Build & Run Tests
         run: |
-          uv run maturin develop  # Compiles Rust and installs into the uv environment
+          # Use develop for tests to keep feedback loop tight
+          uv run maturin develop
           cargo test --locked
-          uv run pytest tests/
+          uv run pytest tests/ --durations=5
 
 
   profile-comparison:
@@ -53,27 +69,44 @@ jobs:
         with:
           fetch-depth: 0 # Needed to compare branches
 
-      - name: Install Flamegraph & Inferno
-        run: |
-          cargo install flamegraph
-          cargo install inferno
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Profile Main (Baseline)
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Flamegraph & Inferno
+        run: cargo install flamegraph inferno
+
+      # - name: Profile Main (Baseline)
+      #   run: |
+      #     git checkout main
+      #     cargo flamegraph --bench molecular_bench -- --bench --profile-time 5
+      #     cp flamegraph.svg baseline.svg
+
+      # - name: Profile PR (Current)
+      #   run: |
+      #     git checkout ${{ github.head_ref }}
+      #     cargo flamegraph --bench molecular_bench -- --bench --profile-time 5
+      #     cp flamegraph.svg current.svg
+
+      # - name: Generate Differential Flamegraph
+      #   run: |
+      #     # Use inferno to compare the two profiles
+      #     inferno-diff-folded baseline.svg current.svg | inferno-flamegraph > diff.svg
+
+      - name: Profile Comparison
         run: |
+          # Use a dedicated profile for CI to avoid incremental overhead
+          export CARGO_PROFILE_RELEASE_DEBUG=true
+
           git checkout main
-          cargo flamegraph --bench molecular_bench -- --bench --profile-time 5
+          cargo flamegraph --bench molecular_bench -- --bench --profile-time 10
           cp flamegraph.svg baseline.svg
 
-      - name: Profile PR (Current)
-        run: |
           git checkout ${{ github.head_ref }}
-          cargo flamegraph --bench molecular_bench -- --bench --profile-time 5
-          cp flamegraph.svg current.svg
+          cargo flamegraph --bench molecular_bench -- --bench --profile-time 10
 
-      - name: Generate Differential Flamegraph
-        run: |
-          # Use inferno to compare the two profiles
-          inferno-diff-folded baseline.svg current.svg | inferno-flamegraph > diff.svg
+          # Use inferno for a true mathematical diff
+          inferno-diff-folded baseline.svg flamegraph.svg | inferno-flamegraph > diff.svg
 
       - name: Upload Diff
         uses: actions/upload-artifact@v4
@@ -81,11 +114,12 @@ jobs:
           name: performance-diff
           path: diff.svg
 
-      - name: Comment with Flamegraph Artifact Link
-        if: github.event_name == 'pull_request'
+      - name: Comment PR
         run: |
           RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          echo "### 🔥 Differential Flamegraph\n[Download diff.svg artifact from this workflow run](${RUN_URL})" > comment.md
+          echo "### 🔥 Differential Flamegraph Generated" > comment.md
+          echo "Blue areas represent speedups, Red represents regressions." >> comment.md
+          echo "[View Artifacts]($RUN_URL)" >> comment.md
           gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,7 +127,6 @@ jobs:
   benchmarking:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: check-and-test
     permissions:
       contents: write
     steps:
@@ -103,10 +136,12 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Build Optimized Release
+        # --release ensures LTO and O3 optimizations
+        run: uv run maturin develop --release
+
       - name: Run Benchmarks
-        run: |
-          uv run maturin develop
-          cargo bench --locked -- --output-format bencher | tee output.txt
+        run: cargo bench --locked -- --output-format bencher | tee output.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
