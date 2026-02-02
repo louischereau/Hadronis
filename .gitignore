@@ -1,0 +1,16 @@
+.venv/
+/target
+__pycache__/
+*.so
+*.pyd
+*.dylib
+*.pyc
+*.npy
+.install_stamp
+dist/
+.ruff_cache/
+.pytest_cache/
+python/valence/__pycache__/__init__.cpython-312.pyc
+*.svg
+*.data
+*.json.gz

@@ -1,0 +1,43 @@
+[project]
+name = "valence"
+version = "0.1.0"
+description = "High-performance Geometric GNN Engine"
+license = {text = "MIT OR Apache-2.0"}
+authors = [{name = "Louis Chereau"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "psutil>=7.2.2",
+    "pydantic>=2.0",
+]
+
+# Standard way to define dev tools
+[dependency-groups]
+dev = [
+    "pytest",
+    "maturin",
+    "ruff",
+    "pre-commit",
+]
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "valence._lowlevel" # Common pattern: hide Rust behind a Python wrapper
+
+[tool.uv]
+# This tells uv to watch your Rust files for changes
+cache-keys = [{file = "pyproject.toml"}, {file = "Cargo.toml"}, {file = "**/*.rs"}]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]

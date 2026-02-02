@@ -1,0 +1,91 @@
+# ruff: noqa: I001
+import gc
+import os
+import time
+
+import numpy as np
+import psutil
+
+from memory_tracker import track_memory
+from valence import Molecule, ValenceEngine
+
+
+def get_memory_mb():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / (1024 * 1024)
+
+
+@track_memory
+def run_engine(
+    engine: ValenceEngine, molecules: list[Molecule], features_list: list[np.ndarray]
+):
+    return engine.predict_batch(molecules, features_list)
+
+
+def run_stress_test():
+    print(f"--- Starting Stress Test [PID: {os.getpid()}] ---")
+    initial_mem = get_memory_mb()
+    print(f"Initial Memory: {initial_mem:.2f} MB")
+
+    # 1. Initialize Engine
+    # Save random weights to a temporary .npy file
+    weights = np.random.rand(64, 64).astype(np.float32)
+    weights_path = "./tmp_stress_weights.npy"
+    np.save(weights_path, weights)
+    engine = ValenceEngine(weight_path=weights_path)
+
+    # 2. Generate a large batch of molecules
+    # Testing 100 molecules with 1000 atoms each
+    batch_size = 100
+    atoms_per_mol = 1000
+    print(f"Creating batch: {batch_size} molecules, {atoms_per_mol} atoms each...")
+
+    molecules = [
+        Molecule(
+            atomic_numbers=[6] * atoms_per_mol,
+            positions=np.random.rand(atoms_per_mol, 3).tolist(),
+        )
+        for _ in range(batch_size)
+    ]
+
+    # 3. Prepare features for each molecule
+    features_list = [
+        np.random.rand(atoms_per_mol, 64).astype(np.float32) for _ in range(batch_size)
+    ]
+
+    # 4. Execution Loop
+    print("Running inference...")
+    start_time = time.perf_counter()
+
+    # We run this multiple times to see if memory keeps climbing (a leak)
+    for i in range(5):
+        results = run_engine(engine, molecules, features_list)
+        gc.collect()  # Force Python to clean up finished result objects
+        current_mem = get_memory_mb()
+        print(
+            f"  Iteration {i + 1}: Mem = {current_mem:.2f} MB | Results = {len(results)}"
+        )
+
+    end_time = time.perf_counter()
+    total_time = end_time - start_time
+
+    print("-" * 30)
+    print(f"Total Throughput: {batch_size * 5 / total_time:.2f} molecules/sec")
+
+    # 4. Cleanup & Final Leak Check
+    del molecules
+    del results
+    time.sleep(1)  # Give OS a second to reclaim
+
+    final_mem = get_memory_mb()
+    leak = final_mem - initial_mem
+    print(f"Final Memory: {final_mem:.2f} MB")
+    print(f"Net Growth: {leak:.2f} MB {'[OK]' if leak < 50 else '[POTENTIAL LEAK]'}")
+
+    # 5. Cleanup temporary file
+    if os.path.exists(weights_path):
+        os.remove(weights_path)
+
+
+if __name__ == "__main__":
+    run_stress_test()
