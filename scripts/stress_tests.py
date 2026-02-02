@@ -1,69 +1,91 @@
+# ruff: noqa: I001
+import gc
 import os
 import time
 
 import numpy as np
-from valence.core import Molecule, ValenceEngine
+import psutil
+
+from memory_tracker import track_memory
+from valence import Molecule, ValenceEngine
 
 
-def generate_mock_data(n_molecules, atoms_per_mol, feature_dim=64):
-    mols = []
-    feats = []
-    for _ in range(n_molecules):
-        # Using a dense sphere-like distribution for more realistic neighbor counts
-        pos = np.random.normal(0, 10, (atoms_per_mol, 3)).astype(np.float32)
-        m = Molecule(atomic_numbers=[6] * atoms_per_mol, positions=pos.tolist())
-        f = np.random.rand(atoms_per_mol, feature_dim).astype(np.float32)
-        mols.append(m)
-        feats.append(f)
-    return mols, feats
+def get_memory_mb():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / (1024 * 1024)
 
 
-def run_benchmarks():
-    # Setup
-    W_DIM = 64
-    weights = np.random.rand(W_DIM, W_DIM).astype(np.float32)
-    np.save("temp_weights.npy", weights)
+@track_memory
+def run_engine(
+    engine: ValenceEngine, molecules: list[Molecule], features_list: list[np.ndarray]
+):
+    return engine.predict_batch(molecules, features_list)
 
-    engine = ValenceEngine("temp_weights.npy")
 
-    # --- Warm-up ---
-    # Essential for Rayon thread pool initialization and CPU frequency scaling
-    print("Warming up engine...")
-    warm_mols, warm_feats = generate_mock_data(5, 500, W_DIM)
-    for m, f in zip(warm_mols, warm_feats):
-        _ = engine.run(m, f)
+def run_stress_test():
+    print(f"--- Starting Stress Test [PID: {os.getpid()}] ---")
+    initial_mem = get_memory_mb()
+    print(f"Initial Memory: {initial_mem:.2f} MB")
 
-    # --- Phase 1: Latency (10k Atoms) ---
-    print("\n--- Phase 1: Latency (Single 10k Atom Molecule) ---")
-    m_lat, f_lat = generate_mock_data(1, 10000, W_DIM)
+    # 1. Initialize Engine
+    # Save random weights to a temporary .npy file
+    weights = np.random.rand(64, 64).astype(np.float32)
+    weights_path = "./tmp_stress_weights.npy"
+    np.save(weights_path, weights)
+    engine = ValenceEngine(weight_path=weights_path)
 
-    # Measure multiple times for a stable average
-    iters = 5
-    latencies = []
-    for _ in range(iters):
-        t0 = time.perf_counter()
-        _ = m_lat[0].predict(f_lat[0])
-        latencies.append((time.perf_counter() - t0) * 1000)
+    # 2. Generate a large batch of molecules
+    # Testing 100 molecules with 1000 atoms each
+    batch_size = 100
+    atoms_per_mol = 1000
+    print(f"Creating batch: {batch_size} molecules, {atoms_per_mol} atoms each...")
 
-    print(f"Mean Latency: {np.mean(latencies):.2f} ms (±{np.std(latencies):.2f} ms)")
+    molecules = [
+        Molecule(
+            atomic_numbers=[6] * atoms_per_mol,
+            positions=np.random.rand(atoms_per_mol, 3).tolist(),
+        )
+        for _ in range(batch_size)
+    ]
 
-    # --- Phase 2: Throughput (Batching) ---
-    print("\n--- Phase 2: Throughput (100 Molecules x 500 Atoms) ---")
-    m_batch, f_batch = generate_mock_data(100, 500, W_DIM)
+    # 3. Prepare features for each molecule
+    features_list = [
+        np.random.rand(atoms_per_mol, 64).astype(np.float32) for _ in range(batch_size)
+    ]
 
-    t0 = time.perf_counter()
-    engine.predict_batch(m_batch, f_batch)
-    t_total = (time.perf_counter() - t0) * 1000
+    # 4. Execution Loop
+    print("Running inference...")
+    start_time = time.perf_counter()
 
-    total_atoms = 100 * 500
-    print(f"Total Time: {t_total:.2f} ms")
-    print(f"Throughput: {total_atoms / (t_total / 1000):,.0f} atoms/sec")
-    print(f"Molecules per second: {100 / (t_total / 1000):.1f}")
+    # We run this multiple times to see if memory keeps climbing (a leak)
+    for i in range(5):
+        results = run_engine(engine, molecules, features_list)
+        gc.collect()  # Force Python to clean up finished result objects
+        current_mem = get_memory_mb()
+        print(
+            f"  Iteration {i + 1}: Mem = {current_mem:.2f} MB | Results = {len(results)}"
+        )
 
-    # Cleanup
-    if os.path.exists("temp_weights.npy"):
-        os.remove("temp_weights.npy")
+    end_time = time.perf_counter()
+    total_time = end_time - start_time
+
+    print("-" * 30)
+    print(f"Total Throughput: {batch_size * 5 / total_time:.2f} molecules/sec")
+
+    # 4. Cleanup & Final Leak Check
+    del molecules
+    del results
+    time.sleep(1)  # Give OS a second to reclaim
+
+    final_mem = get_memory_mb()
+    leak = final_mem - initial_mem
+    print(f"Final Memory: {final_mem:.2f} MB")
+    print(f"Net Growth: {leak:.2f} MB {'[OK]' if leak < 50 else '[POTENTIAL LEAK]'}")
+
+    # 5. Cleanup temporary file
+    if os.path.exists(weights_path):
+        os.remove(weights_path)
 
 
 if __name__ == "__main__":
-    run_benchmarks()
+    run_stress_test()
