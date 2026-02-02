@@ -56,6 +56,7 @@ bench:
 
 # Generate the X-ray of performance
 profile:
+	rm -f flamegraph.svg perf.data profile.json.gz
 	CARGO_PROFILE_RELEASE_DEBUG=true sudo $(CARGO) flamegraph --bench molecular_bench
 
 # Build with the ultimate machine-specific optimizations (SIMD)

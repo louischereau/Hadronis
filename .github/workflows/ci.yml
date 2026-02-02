@@ -8,6 +8,7 @@ on:
 
 jobs:
   check-and-test:
+    if : github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +43,52 @@ jobs:
           uv run maturin develop  # Compiles Rust and installs into the uv environment
           cargo test --locked
           uv run pytest tests/
+
+
+  profile-comparison:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed to compare branches
+
+      - name: Install Flamegraph & Inferno
+        run: |
+          cargo install flamegraph
+          cargo install inferno
+
+      - name: Profile Main (Baseline)
+        run: |
+          git checkout main
+          cargo flamegraph --bench molecular_bench -- --bench --profile-time 5
+          cp flamegraph.svg baseline.svg
+
+      - name: Profile PR (Current)
+        run: |
+          git checkout ${{ github.head_ref }}
+          cargo flamegraph --bench molecular_bench -- --bench --profile-time 5
+          cp flamegraph.svg current.svg
+
+      - name: Generate Differential Flamegraph
+        run: |
+          # Use inferno to compare the two profiles
+          inferno-diff-folded baseline.svg current.svg | inferno-flamegraph > diff.svg
+
+      - name: Upload Diff
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-diff
+          path: diff.svg
+
+      - name: Comment with Flamegraph Artifact Link
+        if: github.event_name == 'pull_request'
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "### 🔥 Differential Flamegraph\n[Download diff.svg artifact from this workflow run](${RUN_URL})" > comment.md
+          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   benchmarking:
     if: github.ref == 'refs/heads/main'
