@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if json_mode {
         // Output only JSON summary
-        println!("{{\"p50\":{},\"p95\":{},\"p99\":{}}}", p50, p95, p99);
+        println!("{{\"p50\":{p50},\"p95\":{p95},\"p99\":{p99}}}");
         return Ok(());
     }
 
