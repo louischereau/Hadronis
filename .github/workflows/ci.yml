@@ -6,8 +6,13 @@ on:
   pull_request:
     branches: [ main ]
 
+# Ensure only one CI run happens per PR at a time to save resources
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check-and-test:
+  check-and-lint:
     if : github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -25,11 +30,13 @@ jobs:
           enable-cache: true      # Automatically caches your Python dependencies
           version: "latest"
 
+      - uses: Swatinem/rust-cache@v2 # Add this to speed up everything
+
       # 3. Rust Quality Checks
       - name: Rust Format & Lint
         run: |
           cargo fmt --all -- --check
-          cargo clippy -- -D warnings
+          cargo clippy --all-targets -- -D warnings -D clippy::pedantic
 
       # 4. Python Quality Checks (Using uv run)
       - name: Python Linting & Format Check
@@ -37,63 +44,25 @@ jobs:
           uv run ruff check python/
           uv run ruff format --check python/
 
-      # 5. Build and Test
-      - name: Build & Run Tests
-        run: |
-          uv run maturin develop  # Compiles Rust and installs into the uv environment
-          cargo test --locked
-          uv run pytest tests/
-
-
-  profile-comparison:
+  test:
+    needs: check-and-lint
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Needed to compare branches
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v5
+      - uses: Swatinem/rust-cache@v2
 
-      - name: Install Flamegraph & Inferno
+      - name: Build & Run Tests
         run: |
-          cargo install flamegraph
-          cargo install inferno
-
-      - name: Profile Main (Baseline)
-        run: |
-          git checkout main
-          cargo flamegraph --bench molecular_bench -- --bench --profile-time 5
-          cp flamegraph.svg baseline.svg
-
-      - name: Profile PR (Current)
-        run: |
-          git checkout ${{ github.head_ref }}
-          cargo flamegraph --bench molecular_bench -- --bench --profile-time 5
-          cp flamegraph.svg current.svg
-
-      - name: Generate Differential Flamegraph
-        run: |
-          # Use inferno to compare the two profiles
-          inferno-diff-folded baseline.svg current.svg | inferno-flamegraph > diff.svg
-
-      - name: Upload Diff
-        uses: actions/upload-artifact@v4
-        with:
-          name: performance-diff
-          path: diff.svg
-
-      - name: Comment with Flamegraph Artifact Link
-        if: github.event_name == 'pull_request'
-        run: |
-          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          echo "### 🔥 Differential Flamegraph\n[Download diff.svg artifact from this workflow run](${RUN_URL})" > comment.md
-          gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use develop for tests to keep feedback loop tight
+          uv run maturin develop
+          cargo test --locked
+          uv run pytest tests/ --durations=5
 
   benchmarking:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: check-and-test
     permissions:
       contents: write
     steps:
@@ -103,10 +72,12 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Build Optimized Release
+        # --release ensures LTO and O3 optimizations
+        run: uv run maturin develop --release
+
       - name: Run Benchmarks
-        run: |
-          uv run maturin develop
-          cargo bench --locked -- --output-format bencher | tee output.txt
+        run: cargo bench --locked -- --output-format bencher | tee output.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
@@ -115,3 +86,26 @@ jobs:
           output-file-path: output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
+
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: benchmarking
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Python wheel
+        run: uv run maturin build --release
+
+      # - name: Publish to PyPI
+      #   uses: pypa/gh-action-pypi-publish@v1.8.11
+      #   with:
+      #     user: __token__
+      #     password: ${{ secrets.PYPI_API_TOKEN }}
+      #     packages-dir: target/wheels
+
+      - name: Create Release
+        run: |
+          gh release create v${{ github.run_number }} target/wheels/*.whl --title "Release v${{ github.run_number }}" --notes "Automated release from CI."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

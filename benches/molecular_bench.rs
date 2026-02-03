@@ -42,7 +42,7 @@ fn bench_fused_inference_scaling(c: &mut Criterion) {
     let mut group = c.benchmark_group("Valence_Engine_Performance");
     let feat_dim = 64;
 
-    for n in [100, 500, 1000].iter() {
+    for n in &[100, 500, 1000] {
         let (graph, model, feats) = setup_engine_data(*n, feat_dim);
 
         // --- NEW: Throughput Calculation ---
@@ -53,7 +53,7 @@ fn bench_fused_inference_scaling(c: &mut Criterion) {
             b.iter(|| {
                 let result = graph.run_fused_with_model_internal(
                     &model,
-                    feats.view(),
+                    &feats.view(),
                     black_box(5.0),
                     black_box(16),
                 );
@@ -61,7 +61,7 @@ fn bench_fused_inference_scaling(c: &mut Criterion) {
             });
         });
     }
-    group.finish()
+    group.finish();
 }
 
 criterion_group!(benches, bench_fused_inference_scaling);

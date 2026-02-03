@@ -16,6 +16,11 @@ pub struct MolecularGraph {
 #[pymethods]
 impl MolecularGraph {
     #[new]
+    /// Creates a new `MolecularGraph`.
+    ///
+    /// # Errors
+    /// Returns an error if the positions array is not shaped correctly.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(atomic_numbers: Vec<i32>, positions: PyReadonlyArray2<f32>) -> PyResult<Self> {
         let pos_view = positions.as_array();
         let pos: Vec<Vector3<f32>> = pos_view
@@ -30,6 +35,8 @@ impl MolecularGraph {
 
     /// The flagship high-performance forward pass.
     /// Fuses: Neighbor Search -> RBF Expansion -> Aggregation -> Linear Transformation.
+    #[must_use]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn run_fused_with_model(
         &self,
         model: &GNNModel,
@@ -37,12 +44,13 @@ impl MolecularGraph {
         cutoff: f32,
         num_offsets: usize,
     ) -> Py<PyArray2<f32>> {
+        #[allow(clippy::needless_pass_by_value)]
         let py = atom_features.py();
         let n = self.positions.len();
         let atom_view = atom_features.as_array();
 
         // 1. Core Computation: Search and Aggregate
-        let aggregated_results = self.compute_core_fused(cutoff, num_offsets, atom_view);
+        let aggregated_results = self.compute_core_fused(cutoff, num_offsets, &atom_view);
 
         // 2. Linear Transformation and Output Formatting
         // Result = Weights * Aggregated_Features
@@ -75,16 +83,20 @@ impl MolecularGraph {
         &self,
         cutoff: f32,
         num_offsets: usize,
-        atom_view: ndarray::ArrayView2<f32>,
+        atom_view: &ndarray::ArrayView2<f32>,
     ) -> Vec<DVector<f32>> {
         let n = self.positions.len();
         let num_feats = atom_view.shape()[1];
 
         // Pre-calculate RBF constants to avoid repetitive math in the inner loop
-        let centers: Vec<f32> = (0..num_offsets)
-            .map(|i| (i as f32) * cutoff / (num_offsets as f32))
+        #[allow(clippy::cast_precision_loss)]
+        let num_offsets_f64 = num_offsets as f64;
+        let cutoff_f64 = f64::from(cutoff);
+        #[allow(clippy::cast_precision_loss)]
+        let centers: Vec<f64> = (0..num_offsets)
+            .map(|i| (i as f64) * cutoff_f64 / num_offsets_f64)
             .collect();
-        let gamma = 0.5 / (cutoff / num_offsets as f32).powi(2);
+        let gamma = 0.5 / (cutoff_f64 / num_offsets_f64).powi(2);
 
         (0..n)
             .into_par_iter()
@@ -96,18 +108,19 @@ impl MolecularGraph {
                     }
 
                     // Euclidean distance calculation
-                    let dist = (self.positions[i] - self.positions[j]).norm();
+                    let dist = f64::from((self.positions[i] - self.positions[j]).norm());
 
-                    if dist <= cutoff {
+                    if dist <= cutoff_f64 {
                         // Optimized RBF weight sum
-                        let rbf_weight: f32 = centers
+                        let rbf_weight: f64 = centers
                             .iter()
                             .map(|&mu| (-(gamma * (dist - mu).powi(2))).exp())
                             .sum();
 
                         // Scatter-Add neighboring features into the local accumulator
+                        #[allow(clippy::cast_possible_truncation)]
                         for f in 0..num_feats {
-                            aggregated[f] += rbf_weight * atom_view[[j, f]];
+                            aggregated[f] += (rbf_weight as f32) * atom_view[[j, f]];
                         }
                     }
                 }
@@ -119,10 +132,11 @@ impl MolecularGraph {
 
 // Inside src/graph.rs
 impl MolecularGraph {
+    #[must_use]
     pub fn run_fused_with_model_internal(
         &self,
         model: &GNNModel,
-        atom_view: ndarray::ArrayView2<f32>,
+        atom_view: &ndarray::ArrayView2<f32>,
         cutoff: f32,
         num_offsets: usize,
     ) -> Vec<DVector<f32>> {
