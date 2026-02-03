@@ -77,7 +77,7 @@ jobs:
         run: uv run maturin develop --release
 
       - name: Run Benchmarks
-        run: cargo bench --locked -- --output-format bencher | tee output.txt
+        run: cargo bench --locked | tee output.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
