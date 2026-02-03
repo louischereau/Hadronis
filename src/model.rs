@@ -9,12 +9,13 @@ pub struct GNNModel {
 
 #[pymethods]
 impl GNNModel {
+    #[must_use]
     #[new]
     pub fn new(weights_raw: PyReadonlyArray2<f32>) -> Self {
         let view = weights_raw.as_array();
         let (rows, cols) = (view.shape()[0], view.shape()[1]);
         // Convert NumPy layout to nalgebra DMatrix
-        let weights = DMatrix::from_iterator(rows, cols, view.iter().cloned());
+        let weights = DMatrix::from_iterator(rows, cols, view.iter().copied());
         GNNModel { weights }
     }
 }

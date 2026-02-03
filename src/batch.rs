@@ -10,11 +10,16 @@ pub struct MolecularBatch {
 
 #[pymethods]
 impl MolecularBatch {
+    #[must_use]
     #[new]
     pub fn new(graphs: Vec<MolecularGraph>) -> Self {
         MolecularBatch { graphs }
     }
-
+    /// Runs batch inference for all graphs in the batch.
+    ///
+    /// # Panics
+    /// Panics if the feature array row count does not match atom count.
+    #[must_use]
     pub fn run_batch_inference(
         &self,
         model: &GNNModel,
