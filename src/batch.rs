@@ -12,6 +12,7 @@ pub struct MolecularBatch {
 impl MolecularBatch {
     #[must_use]
     #[new]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(graphs: Vec<MolecularGraph>) -> Self {
         MolecularBatch { graphs }
     }
@@ -20,6 +21,7 @@ impl MolecularBatch {
     /// # Panics
     /// Panics if the feature array row count does not match atom count.
     #[must_use]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn run_batch_inference(
         &self,
         model: &GNNModel,
@@ -27,6 +29,7 @@ impl MolecularBatch {
         cutoff: f32,
         num_offsets: usize,
     ) -> Vec<Py<PyArray2<f32>>> {
+        #[allow(clippy::needless_pass_by_value)]
         // Step 1: Extract to owned arrays (sequential, safe)
         let owned_atom_features: Vec<_> = all_atom_features
             .iter()
@@ -46,7 +49,7 @@ impl MolecularBatch {
                 );
                 let fused_result = graph.run_fused_with_model_internal(
                     model,
-                    feat_array.view(),
+                    &feat_array.view(),
                     cutoff,
                     num_offsets,
                 );

@@ -11,6 +11,7 @@ pub struct GNNModel {
 impl GNNModel {
     #[must_use]
     #[new]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(weights_raw: PyReadonlyArray2<f32>) -> Self {
         let view = weights_raw.as_array();
         let (rows, cols) = (view.shape()[0], view.shape()[1]);

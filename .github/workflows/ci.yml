@@ -60,53 +60,6 @@ jobs:
           cargo test --locked
           uv run pytest tests/ --durations=5
 
-
-  # profile-comparison:
-  #   runs-on: ubuntu-latest
-  #   if: github.event_name == 'pull_request'
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0 # Needed to compare branches
-
-  #     - uses: dtolnay/rust-toolchain@stable
-
-  #     - uses: Swatinem/rust-cache@v2
-
-  #     - name: Install Flamegraph & Inferno
-  #       run: cargo install flamegraph inferno
-
-  #     - name: Profile Comparison
-  #       run: |
-  #         # Use a dedicated profile for CI to avoid incremental overhead
-  #         export CARGO_PROFILE_RELEASE_DEBUG=true
-
-  #         git checkout main
-  #         cargo flamegraph --bench molecular_bench -- --bench --profile-time 10
-  #         cp flamegraph.svg baseline.svg
-
-  #         git checkout ${{ github.head_ref }}
-  #         cargo flamegraph --bench molecular_bench -- --bench --profile-time 10
-
-  #         # Use inferno for a true mathematical diff
-  #         inferno-diff-folded baseline.svg flamegraph.svg | inferno-flamegraph > diff.svg
-
-  #     - name: Upload Diff
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: performance-diff
-  #         path: diff.svg
-
-  #     - name: Comment PR
-  #       run: |
-  #         RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-  #         echo "### 🔥 Differential Flamegraph Generated" > comment.md
-  #         echo "Blue areas represent speedups, Red represents regressions." >> comment.md
-  #         echo "[View Artifacts]($RUN_URL)" >> comment.md
-  #         gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
-  #       env:
-  #         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   benchmarking:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest

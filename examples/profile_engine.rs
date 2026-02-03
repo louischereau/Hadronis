@@ -30,13 +30,13 @@ fn main() {
     let start = Instant::now();
     for i in 0..50 {
         // This is the "Zone" Tracy will monitor
-        let _result = graph.run_fused_with_model_internal(&model, feats.view(), 5.0, 16);
+        let _result = graph.run_fused_with_model_internal(&model, &feats.view(), 5.0, 16);
         if i % 10 == 0 {
-            println!("Iteration {}...", i);
+            println!("Iteration {i}...");
         }
     }
 
     let duration = start.elapsed();
     println!("--- Profiling Session Complete ---");
-    println!("Total time: {:?}", duration);
+    println!("Total time: {duration:?}");
 }
