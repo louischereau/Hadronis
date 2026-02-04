@@ -1,0 +1,58 @@
+name: CodSpeed Benchmarks
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# # Ensure only one CI run happens per ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # Install fontconfig system library (required for yeslogic-fontconfig-sys)
+      - name: Install fontconfig
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Setup Python
+        run: uv python install 3.13
+
+      - name: Install cargo-codspeed
+        uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-codspeed@4.3.0
+
+      - name: Build benchmarks
+        run: |
+          export PYO3_PYTHON=$(uv python find 3.13)
+          cargo codspeed build --features codspeed
+
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v4.10.4
+        with:
+          mode: simulation
+          run: cargo codspeed run

@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install build tools
+        run: |
+          uv tool install maturin
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -A5 '^\[project\]' pyproject.toml | grep '^version' | cut -d '"' -f2)
+
+          if [ -z "$VERSION" ]; then
+            echo "❌ Failed to extract version from pyproject.toml"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "📦 Releasing version $VERSION"
+
+      - name: Sync Cargo.toml version
+        run: |
+          sed -i "0,/^version = /s//version = \"${{ steps.version.outputs.version }}\"/" Cargo.toml
+
+      - name: Verify Cargo.toml version
+        run: |
+          grep '^version = ' Cargo.toml
+
+      - name: Build wheels
+        run: |
+          uv run maturin build --release
+
+      - name: Create and push git tag
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "⚠️ Tag $TAG already exists — skipping tag creation"
+          else
+            git tag "$TAG"
+            git push origin "$TAG"
+          fi
+
+      - name: Create GitHub release (idempotent)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "⚠️ Release $TAG already exists — skipping"
+          else
+            gh release create "$TAG" target/wheels/*.whl \
+              --title "Release $TAG"
+          fi
+
+      # - name: Publish to PyPI
+      #   uses: pypa/gh-action-pypi-publish@v1.8.11
+      #   with:
+      #     user: __token__
+      #     password: ${{ secrets.PYPI_API_TOKEN }}
+      #     packages-dir: target/wheels

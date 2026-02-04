@@ -1,0 +1,63 @@
+name: Quality Check
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Setup Rust Toolchain
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      # Install fontconfig system library (required for yeslogic-fontconfig-sys)
+      - name: Install fontconfig
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+
+      # 2. Setup uv (The modern way)
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true      # Automatically caches your Python dependencies
+          version: "latest"
+
+      - uses: Swatinem/rust-cache@v2 # Add this to speed up everything
+
+      # 3. Rust Quality Checks
+      - name: Rust Format & Lint
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --all-targets -- -D warnings -D clippy::pedantic
+
+      # 4. Python Quality Checks (Using uv run)
+      - name: Python Linting & Format Check
+        run: |
+          uv run ruff check python/
+          uv run ruff format --check python/
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Install fontconfig system library (required for yeslogic-fontconfig-sys)
+      - name: Install fontconfig
+        run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
+      - uses: astral-sh/setup-uv@v5
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build & Run Tests
+        run: |
+          # Use develop for tests to keep feedback loop tight
+          uv run maturin develop
+          cargo test --locked
+          uv run pytest tests/ --durations=5
