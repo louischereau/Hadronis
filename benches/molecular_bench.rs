@@ -1,9 +1,7 @@
 #[cfg(feature = "codspeed")]
-use codspeed_criterion_compat::{
-    black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput,
-};
+use codspeed_criterion_compat::{black_box, BenchmarkId, Criterion as BenchCriterion, Throughput};
 #[cfg(not(feature = "codspeed"))]
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{black_box, BenchmarkId, Criterion as BenchCriterion, Throughput};
 use nalgebra::{DMatrix, Vector3};
 use numpy::ndarray;
 use valence::graph::MolecularGraph;
@@ -35,7 +33,7 @@ fn setup_engine_data(
     (graph, model, features)
 }
 
-fn bench_fused_inference_scaling(c: &mut Criterion) {
+fn bench_fused_inference_scaling(c: &mut BenchCriterion) {
     let mut group = c.benchmark_group("Valence_Engine_Performance");
     let feat_dim = 64;
 
