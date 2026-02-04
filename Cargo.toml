@@ -42,11 +42,6 @@ name = "scaling_bench"
 path = "benches/scaling_bench.rs"
 harness = false
 
-[[bench]]
-name = "iai_bench"
-path = "benches/iai_bench.rs"
-harness = false
-
 [profile.release]
 debug = true
 force-frame-pointers = true
