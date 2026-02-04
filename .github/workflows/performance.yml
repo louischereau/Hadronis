@@ -1,226 +1,277 @@
-name: Performance Benchmarking
+name: CodSpeed Benchmarks
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 
-# Ensure only one CI run happens per ref
+# # Ensure only one CI run happens per ref
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  id-token: write
 
 jobs:
-  # ============================================================
-  # PR PERFORMANCE REGRESSION CHECKS
-  # ============================================================
-  performance-regression:
-    if: github.event_name == 'pull_request'
+  benchmarks:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      # Install fontconfig system library (required for yeslogic-fontconfig-sys)
-      - name: Install fontconfig
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libfontconfig1-dev
-
-      - uses: Swatinem/rust-cache@v2
-
-      - uses: astral-sh/setup-uv@v5
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+          version: "latest"
 
-      - name: Build release binaries
-        run: cargo build --release
+      - name: Setup Python
+        run: uv python install 3.13
 
-      - name: Install system tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y valgrind likwid jq
-
-      # ----------------------------
-      # Latency benchmark (single run)
-      # ----------------------------
-      - name: Run latency benchmark
-        run: |
-          cargo run --release --bin latency_bench -- --json > latency.json
-          jq -e '.p50 and .p95 and .p99' latency.json > /dev/null
-
-      # ----------------------------
-      # Hardware metrics (best effort)
-      # NOTE: On GitHub-hosted runners, PMU access
-      # may be restricted. Failures are expected.
-      # ----------------------------
-      - name: Collect hardware metrics (Likwid)
-        continue-on-error: true
-        run: |
-          likwid-perfctr -C 0 -g FLOPS_DP -m \
-            cargo run --release --bin roofline_bench > likwid_metrics.txt
-
-      - name: Generate roofline analysis
-        run: cargo run --release --bin roofline_bench
-
-      # ----------------------------
-      # IAI / instruction counting
-      # ----------------------------
-      - name: Run iai-callgrind
-        run: cargo bench --bench molecular_bench_iai -- --iai
-
-      # ----------------------------
-      # CodSpeed (isolated)
-      # ----------------------------
       - name: Install cargo-codspeed
         uses: taiki-e/cache-cargo-install-action@v2
         with:
-          tool: cargo-codspeed
+          tool: cargo-codspeed@4.3.0
 
-      - name: Run CodSpeed
-        uses: CodSpeedHQ/action@v4
+      - name: Build benchmarks
+        run: |
+          export PYO3_PYTHON=$(uv python find 3.13)
+          cargo codspeed build --features codspeed
+
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v4.10.4
         with:
           mode: simulation
-          run: |
-            export PYO3_PYTHON=$(uv python find 3.13)
-            export CARGO_TARGET_DIR=target/codspeed
-            cargo codspeed build --features codspeed
-            cargo codspeed run --features codspeed
+          run: cargo codspeed run --features codspeed
 
-      # ----------------------------
-      # Summary + PR comment
-      # ----------------------------
-      - name: Assemble performance dashboard
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          P50=$(jq '.p50' latency.json)
-          P95=$(jq '.p95' latency.json)
-          P99=$(jq '.p99' latency.json)
 
-          # ---- Extract iai / cache metrics (robust parsing) ----
-          IAI_FILE=$(find target/criterion/iai -name summary.txt | head -1)
+# name: Performance Benchmarking
 
-          if [ -f "$IAI_FILE" ]; then
-            L1_MISS=$(grep "L1-dcache-misses" "$IAI_FILE" \
-              | sed -E 's/.*:[[:space:]]*([0-9.]+%?).*/\1/' \
-              | head -1)
+# on:
+#   push:
+#     branches: [ main ]
+#   pull_request:
+#     branches: [ main ]
 
-            LLC_MISS=$(grep -E "LL-dcache-misses|LLC-misses" "$IAI_FILE" \
-              | sed -E 's/.*:[[:space:]]*([0-9.]+%?).*/\1/' \
-              | head -1)
+# # Ensure only one CI run happens per ref
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
 
-            INSTR=$(grep -E "Instructions|Ir" "$IAI_FILE" \
-              | sed -E 's/.*:[[:space:]]*([0-9,]+).*/\1/' \
-              | head -1)
-          else
-            L1_MISS="n/a"
-            LLC_MISS="n/a"
-            INSTR="n/a"
-          fi
+# permissions:
+#   contents: write
+#   pull-requests: write
 
-          # ---- GitHub Actions summary ----
-          {
-            echo "## 🚀 Valence Core Performance Dashboard"
-            echo "### ⏱️ Latency (ns)"
-            echo "| Metric | Value |"
-            echo "| --- | --- |"
-            echo "| P50 | ${P50} |"
-            echo "| P95 | ${P95} |"
-            echo "| P99 | ${P99} |"
-            echo ""
-            echo "### 🧠 Cache & Instruction Metrics (iai-callgrind)"
-            echo "| Metric | Value |"
-            echo "| --- | --- |"
-            echo "| L1 D-Cache Misses | ${L1_MISS:-n/a} |"
-            echo "| LLC Misses | ${LLC_MISS:-n/a} |"
-            echo "| Instructions | ${INSTR:-n/a} |"
-          } >> "$GITHUB_STEP_SUMMARY"
+# jobs:
+#   # ============================================================
+#   # PR PERFORMANCE REGRESSION CHECKS
+#   # ============================================================
+#   performance-regression:
+#     if: github.event_name == 'pull_request'
+#     runs-on: ubuntu-latest
 
-          # ---- PR comment ----
-          {
-            echo "## 🚀 Performance Summary"
-            echo ""
-            echo "### ⏱️ Latency (ns)"
-            echo "| P50 | P95 | P99 |"
-            echo "| --- | --- | --- |"
-            echo "| ${P50} | ${P95} | ${P99} |"
-            echo ""
-            echo "### 🧠 Cache & Instruction Metrics (iai-callgrind)"
-            echo "| Metric | Value |"
-            echo "| --- | --- |"
-            echo "| L1 D-Cache Misses | ${L1_MISS:-n/a} |"
-            echo "| LLC Misses | ${LLC_MISS:-n/a} |"
-            echo "| Instructions | ${INSTR:-n/a} |"
-            echo ""
-            echo "_Note: Hardware counters may be restricted on GitHub-hosted runners._"
-            echo ""
-            echo "📊 Full visuals (roofline, jitter) are available in the Action Summary."
-          } > pr_comment.txt
+#     steps:
+#       - uses: actions/checkout@v4
 
-          gh pr comment ${{ github.event.pull_request.number }} --body-file pr_comment.txt
+#       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Upload performance artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: performance-artifacts
-          path: |
-            *.png
-            latency.json
-            likwid_metrics.txt
-            target/criterion/iai/
+#       # Install fontconfig system library (required for yeslogic-fontconfig-sys)
+#       - name: Install fontconfig
+#         run: |
+#           sudo apt-get update
+#           sudo apt-get install -y libfontconfig1-dev
 
-  # ============================================================
-  # MAIN BRANCH BENCHMARKING (HISTORICAL, NON-BLOCKING)
-  # ============================================================
-  benchmarking:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+#       - uses: Swatinem/rust-cache@v2
 
-    permissions:
-      contents: write
+#       - uses: astral-sh/setup-uv@v5
+#         with:
+#           enable-cache: true
 
-    steps:
-      - uses: actions/checkout@v4
+#       - name: Build release binaries
+#         run: cargo build --release
 
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+#       - name: Install system tools
+#         run: |
+#           sudo apt-get update
+#           sudo apt-get install -y valgrind likwid jq
 
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
+#       # ----------------------------
+#       # Latency benchmark (single run)
+#       # ----------------------------
+#       - name: Run latency benchmark
+#         run: |
+#           cargo run --release --bin latency_bench -- --json > latency.json
+#           jq -e '.p50 and .p95 and .p99' latency.json > /dev/null
 
-      - name: Build release binaries
-        run: cargo build --release
+#       # ----------------------------
+#       # Hardware metrics (best effort)
+#       # NOTE: On GitHub-hosted runners, PMU access
+#       # may be restricted. Failures are expected.
+#       # ----------------------------
+#       - name: Collect hardware metrics (Likwid)
+#         continue-on-error: true
+#         run: |
+#           likwid-perfctr -C 0 -g FLOPS_DP -m \
+#             cargo run --release --bin roofline_bench > likwid_metrics.txt
 
-      - name: Install cargo-criterion
-        run: cargo install cargo-criterion
+#       - name: Generate roofline analysis
+#         run: cargo run --release --bin roofline_bench
 
-      - name: Run Criterion benchmarks
-        run: cargo criterion --message-format=json > target/criterion/benchmark.json
+#       # ----------------------------
+#       # IAI / instruction counting
+#       # ----------------------------
+#       - name: Run iai-callgrind
+#         run: cargo bench --bench molecular_bench_iai -- --iai
 
-      - name: Upload Criterion HTML report
-        uses: actions/upload-artifact@v4
-        with:
-          name: criterion-html-report
-          path: target/criterion/report/
+#       # ----------------------------
+#       # CodSpeed (isolated)
+#       # ----------------------------
+#       - name: Install cargo-codspeed
+#         uses: taiki-e/cache-cargo-install-action@v2
+#         with:
+#           tool: cargo-codspeed
 
-      # Safer config for main:
-      # - no auto-push
-      # - no hard failure on variance
-      - name: Store benchmark result (non-blocking)
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          tool: 'criterion'
-          output-file-path: target/criterion/benchmark.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: false
-          fail-on-alert: false
-          alert-threshold: 0.05
+#       - name: Run CodSpeed
+#         uses: CodSpeedHQ/action@v4
+#         with:
+#           mode: simulation
+#           run: |
+#             export PYO3_PYTHON=$(uv python find 3.13)
+#             export CARGO_TARGET_DIR=target/codspeed
+#             cargo codspeed build --features codspeed
+#             cargo codspeed run --features codspeed
+
+#       # ----------------------------
+#       # Summary + PR comment
+#       # ----------------------------
+#       - name: Assemble performance dashboard
+#         env:
+#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#         run: |
+#           P50=$(jq '.p50' latency.json)
+#           P95=$(jq '.p95' latency.json)
+#           P99=$(jq '.p99' latency.json)
+
+#           # ---- Extract iai / cache metrics (robust parsing) ----
+#           IAI_FILE=$(find target/criterion/iai -name summary.txt | head -1)
+
+#           if [ -f "$IAI_FILE" ]; then
+#             L1_MISS=$(grep "L1-dcache-misses" "$IAI_FILE" \
+#               | sed -E 's/.*:[[:space:]]*([0-9.]+%?).*/\1/' \
+#               | head -1)
+
+#             LLC_MISS=$(grep -E "LL-dcache-misses|LLC-misses" "$IAI_FILE" \
+#               | sed -E 's/.*:[[:space:]]*([0-9.]+%?).*/\1/' \
+#               | head -1)
+
+#             INSTR=$(grep -E "Instructions|Ir" "$IAI_FILE" \
+#               | sed -E 's/.*:[[:space:]]*([0-9,]+).*/\1/' \
+#               | head -1)
+#           else
+#             L1_MISS="n/a"
+#             LLC_MISS="n/a"
+#             INSTR="n/a"
+#           fi
+
+#           # ---- GitHub Actions summary ----
+#           {
+#             echo "## 🚀 Valence Core Performance Dashboard"
+#             echo "### ⏱️ Latency (ns)"
+#             echo "| Metric | Value |"
+#             echo "| --- | --- |"
+#             echo "| P50 | ${P50} |"
+#             echo "| P95 | ${P95} |"
+#             echo "| P99 | ${P99} |"
+#             echo ""
+#             echo "### 🧠 Cache & Instruction Metrics (iai-callgrind)"
+#             echo "| Metric | Value |"
+#             echo "| --- | --- |"
+#             echo "| L1 D-Cache Misses | ${L1_MISS:-n/a} |"
+#             echo "| LLC Misses | ${LLC_MISS:-n/a} |"
+#             echo "| Instructions | ${INSTR:-n/a} |"
+#           } >> "$GITHUB_STEP_SUMMARY"
+
+#           # ---- PR comment ----
+#           {
+#             echo "## 🚀 Performance Summary"
+#             echo ""
+#             echo "### ⏱️ Latency (ns)"
+#             echo "| P50 | P95 | P99 |"
+#             echo "| --- | --- | --- |"
+#             echo "| ${P50} | ${P95} | ${P99} |"
+#             echo ""
+#             echo "### 🧠 Cache & Instruction Metrics (iai-callgrind)"
+#             echo "| Metric | Value |"
+#             echo "| --- | --- |"
+#             echo "| L1 D-Cache Misses | ${L1_MISS:-n/a} |"
+#             echo "| LLC Misses | ${LLC_MISS:-n/a} |"
+#             echo "| Instructions | ${INSTR:-n/a} |"
+#             echo ""
+#             echo "_Note: Hardware counters may be restricted on GitHub-hosted runners._"
+#             echo ""
+#             echo "📊 Full visuals (roofline, jitter) are available in the Action Summary."
+#           } > pr_comment.txt
+
+#           gh pr comment ${{ github.event.pull_request.number }} --body-file pr_comment.txt
+
+#       - name: Upload performance artifacts
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: performance-artifacts
+#           path: |
+#             *.png
+#             latency.json
+#             likwid_metrics.txt
+#             target/criterion/iai/
+
+#   # ============================================================
+#   # MAIN BRANCH BENCHMARKING (HISTORICAL, NON-BLOCKING)
+#   # ============================================================
+#   benchmarking:
+#     if: github.ref == 'refs/heads/main'
+#     runs-on: ubuntu-latest
+
+#     permissions:
+#       contents: write
+
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - uses: dtolnay/rust-toolchain@stable
+#       - uses: Swatinem/rust-cache@v2
+
+#       - uses: astral-sh/setup-uv@v5
+#         with:
+#           enable-cache: true
+
+#       - name: Build release binaries
+#         run: cargo build --release
+
+#       - name: Install cargo-criterion
+#         run: cargo install cargo-criterion
+
+#       - name: Run Criterion benchmarks
+#         run: cargo criterion --message-format=json > target/criterion/benchmark.json
+
+#       - name: Upload Criterion HTML report
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: criterion-html-report
+#           path: target/criterion/report/
+
+#       # Safer config for main:
+#       # - no auto-push
+#       # - no hard failure on variance
+#       - name: Store benchmark result (non-blocking)
+#         uses: benchmark-action/github-action-benchmark@v1
+#         with:
+#           tool: 'criterion'
+#           output-file-path: target/criterion/benchmark.json
+#           github-token: ${{ secrets.GITHUB_TOKEN }}
+#           auto-push: false
+#           fail-on-alert: false
+#           alert-threshold: 0.05
