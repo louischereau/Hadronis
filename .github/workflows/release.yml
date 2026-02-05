@@ -44,13 +44,12 @@ jobs:
 
       # 5. Semantic-release: compute version, commit, tag, GitHub release
       - name: Semantic release (version bump + commit + tag)
+        working-directory: ${{ github.workspace }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           uv run semantic-release publish \
-            --version-variable "pyproject.toml:project.version" \
-            --version-variable "Cargo.toml:package.version" \
             -v DEBUG \
             -D commit_author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
         env:
