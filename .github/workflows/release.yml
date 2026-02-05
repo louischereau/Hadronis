@@ -43,6 +43,12 @@ jobs:
           uv tool install maturin       # for building wheels
           uv pip install python-semantic-release==7.34.6
 
+      - name: Ensure all remote tags are fetched
+        run: git fetch --prune --tags origin
+
+      - name: Check tags before release
+        run: git tag -l && git describe --tags --abbrev=0
+
       # 5. Semantic-release: compute version, commit, tag, GitHub release
       - name: Semantic release (version bump + commit + tag)
         working-directory: ${{ github.workspace }}
