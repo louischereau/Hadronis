@@ -49,6 +49,8 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           uv run semantic-release publish \
+            --version-variable "pyproject.toml:project.version" \
+            --version-variable "Cargo.toml:package.version" \
             -v DEBUG \
             -D commit_author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
         env:
