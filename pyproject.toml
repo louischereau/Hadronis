@@ -16,10 +16,9 @@ dependencies = [
 
 [tool.semantic_release]
 version_variable = [
-  "pyproject.toml:project.version",
+  "pyproject.toml:version",
+#   "Cargo.toml:version"
 ]
-# Regex pattern to match versions, including optional beta suffix
-version_pattern = '\b\d+\.\d+\.\d+(-beta\.\d+)?\b'
 tag_format = "v{version}"
 
 # Standard way to define dev tools
