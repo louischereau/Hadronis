@@ -2,6 +2,12 @@
 
 <!--next-version-placeholder-->
 
+## v0.1.1 (2026-02-06)
+
+### Fix
+
+* Enable fetching tags in release workflow ([#10](https://github.com/louischereau/Valence/issues/10)) ([`0310b91`](https://github.com/louischereau/Valence/commit/0310b9137e56754bd97c0e420ec62dc0a013d9da))
+
 ## v0.1.0 (2026-02-06)
 
 ### Feature
