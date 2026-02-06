@@ -27,12 +27,10 @@ jobs:
       # 3. Install uv (tool manager for Python/Rust workflow)
       - name: Set up uv
         uses: astral-sh/setup-uv@v3
-
-      - name: Cache uv tools
-        uses: actions/cache@v3
         with:
-          path: ~/.uv/tools
-          key: uv-tools-${{ hashFiles('pyproject.toml') }}
+          enable-cache: true
+          version: "latest"
+
 
       # 4. Install system dependencies for Rust build
       - name: Install system dependencies
