@@ -28,6 +28,12 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v3
 
+      - name: Cache uv tools
+        uses: actions/cache@v3
+        with:
+          path: ~/.uv/tools
+          key: uv-tools-${{ hashFiles('pyproject.toml') }}
+
       # 4. Install system dependencies for Rust build
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
@@ -40,6 +46,7 @@ jobs:
       - name: Install tools
         run: |
           uv tool install maturin       # for building wheels
+          uv pip install twine
           uv pip install python-semantic-release==7.34.6
 
 
@@ -70,8 +77,8 @@ jobs:
           gh release upload "$TAG" target/wheels/*.whl --clobber
 
       # - name: Publish to PyPI
-      #   uses: pypa/gh-action-pypi-publish@v1.8.11
-      #   with:
-      #     user: __token__
-      #     password: ${{ secrets.PYPI_API_TOKEN }}
-      #     packages-dir: target/wheels
+      #   env:
+      #     TWINE_USERNAME: __token__
+      #     TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      #   run: |
+      #     python -m twine upload target/wheels/*.whl

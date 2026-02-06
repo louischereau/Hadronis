@@ -19,6 +19,7 @@ version_variable = [
   "pyproject.toml:version",
 ]
 branch = "main"
+build_command = "maturin build --release"
 tag_format = "v{version}"
 
 # Standard way to define dev tools
