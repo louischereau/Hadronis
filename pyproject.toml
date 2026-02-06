@@ -21,6 +21,7 @@ version_variable = [
 branch = "main"
 build_command = "maturin build --release"
 upload_to_pypi = false
+upload_to_release = false
 tag_format = "v{version}"
 
 # Standard way to define dev tools
