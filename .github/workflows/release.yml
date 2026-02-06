@@ -28,11 +28,6 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v3
 
-      - name: Create and push tag
-        run: |
-          git tag v0.1.0
-          git push origin v0.1.0
-
       # 4. Install system dependencies for Rust build
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
