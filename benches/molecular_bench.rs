@@ -2,10 +2,10 @@
 use codspeed_criterion_compat::{black_box, BenchmarkId, Criterion as BenchCriterion, Throughput};
 #[cfg(not(feature = "codspeed"))]
 use criterion::{black_box, BenchmarkId, Criterion as BenchCriterion, Throughput};
+use hadronis::graph::MolecularGraph;
+use hadronis::model::GNNModel;
 use nalgebra::{DMatrix, Vector3};
 use numpy::ndarray;
-use valence::graph::MolecularGraph;
-use valence::model::GNNModel;
 
 fn setup_engine_data(
     n_atoms: usize,
@@ -34,7 +34,7 @@ fn setup_engine_data(
 }
 
 fn bench_fused_inference_scaling(c: &mut BenchCriterion) {
-    let mut group = c.benchmark_group("Valence_Engine_Performance");
+    let mut group = c.benchmark_group("Hadronis_Engine_Performance");
     let feat_dim = 64;
 
     // Scaling analysis: Essential for showing PhysiocX how the engine handles large molecules

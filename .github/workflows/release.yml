@@ -73,9 +73,9 @@ jobs:
           TAG="$(git describe --tags --abbrev=0)"
           gh release upload "$TAG" target/wheels/*.whl --clobber
 
-      # - name: Publish to PyPI
-      #   env:
-      #     TWINE_USERNAME: __token__
-      #     TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      #   run: |
-      #     python -m twine upload target/wheels/*.whl
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          python -m twine upload target/wheels/*.whl

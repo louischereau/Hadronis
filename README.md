@@ -1,16 +1,16 @@
-# Valence
+# Hadronis
 
-[![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance%20Tracking-blue?logo=github&style=flat-square)](https://codspeed.io/louischereau/Valence?utm_source=badge)
+[![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance%20Tracking-blue?logo=github&style=flat-square)](https://codspeed.io/louischereau/Hadronis?utm_source=badge)
 
-**High-performance Geometric GNN Engine for Chemistry and Physics**
+**High-performance Geometric GNN Engine for Chemistry and Physics.**
 
 ## Overview
 
-Valence is a hybrid Rust/Python library for molecular graph neural networks (GNNs), designed for scientific computing at scale. It combines the speed of Rust with the flexibility of Python, targeting real-world chemistry and physics applications.
+Hadronis is a hybrid Rust/Python library for molecular graph neural networks (GNNs), designed for scientific computing at scale. It combines the speed of Rust with the flexibility of Python, targeting real-world chemistry and physics applications.
 
 ## Chemistry Domain Knowledge
 
-Valence builds molecular graphs from atomic coordinates and atomic numbers, representing each atom as a node and chemical bonds or spatial proximity as edges. The graph construction leverages domain knowledge:
+Hadronis builds molecular graphs from atomic coordinates and atomic numbers, representing each atom as a node and chemical bonds or spatial proximity as edges. The graph construction leverages domain knowledge:
 
  - **Nodes**: Atoms, defined by atomic number and 3D position.
  - **Edges**: Created using a distance-based cutoff, reflecting chemical bonding and physical interactions.
@@ -36,12 +36,12 @@ Valence builds molecular graphs from atomic coordinates and atomic numbers, repr
 
 **Python Example:**
 ```python
-import valence
-mol = valence.Molecule(
+import hadronis
+mol = hadronis.Molecule(
 	atomic_numbers=[6, 1, 1, 1, 1],
 	positions=[[0,0,0],[0.63,0.63,0.63],[-0.63,-0.63,0.63],[-0.63,0.63,-0.63],[0.63,-0.63,-0.63]]
 )
-engine = valence.ValenceEngine("gnn_model_weights.npy")
+engine = hadronis.HadronisEngine("gnn_model_weights.npy")
 output = engine.run(mol, feats, cutoff=1.2, k=8)
 ```
 - **Graph Construction**: The engine automatically builds a graph using atomic positions and applies the cutoff to define edges.

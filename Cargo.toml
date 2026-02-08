@@ -1,15 +1,13 @@
 [package]
-name = "valence"
-version = "0.1.0"
+name = "hadronis"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"  # <--- Add this line
 
 [lib]
 # This name must match the name in your #[pymodule] in lib.rs
-name = "valence"
+name = "hadronis"
 crate-type = ["cdylib", "rlib"]
-
-
 
 [dependencies]
 # The bridge between Rust and Python
@@ -22,6 +20,9 @@ tracy-client = { version = "0.17", optional = true }
 hdrhistogram = "7.5.4"
 plotters = "0.3.7"
 codspeed-criterion-compat = { version = "4.3.0", optional = true }
+safetensors = "0.7.0"
+memmap2 = "0.9.9"
+bytemuck = "1.25.0"
 
 
 [dev-dependencies]
