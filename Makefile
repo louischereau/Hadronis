@@ -1,3 +1,4 @@
+
 # Variables
 VENV := .venv
 UV := uv
@@ -7,7 +8,7 @@ INSTALL_STAMP := $(VENV)/.install_stamp
 .PHONY: help dev release test lint format clean bench
 
 help:
-	@echo "Valence (uv-powered) Development:"
+	@echo "Hadronis (uv-powered) Development:"
 	@echo "  dev        Build & sync the engine"
 	@echo "  format     Automatically fix code style (Rust & Python)"
 	@echo "  lint       Check code quality without fixing"
@@ -67,7 +68,7 @@ build-native:
 # Audit the Fused Kernel (The method name changed to run_fused_with_model)
 audit-asm:
 	@echo "Searching for SIMD vectors in the fused kernel..."
-	RUSTFLAGS="-C target-cpu=native" $(CARGO) asm valence::graph::MolecularGraph::run_fused_with_model_internal | grep -E "vaddps|vmulps|ymm|zmm" || echo "No SIMD detected."
+	RUSTFLAGS="-C target-cpu=native" $(CARGO) asm hadronis::graph::MolecularGraph::run_fused_with_model_internal | grep -E "vaddps|vmulps|ymm|zmm" || echo "No SIMD detected."
 
 sample:
 	@samply record $(shell ls target/release/deps/molecular_bench-*) --bench
@@ -86,3 +87,10 @@ stress-test: dev
 clean:
 	$(CARGO) clean
 	rm -rf $(VENV) dist/
+
+
+# Sync Cargo.toml version with pyproject.toml version (bash only)
+sync-versions:
+	@ver=$$(grep '^version =' pyproject.toml | sed 's/version = //;s/"//g') && \
+	sed -i "s/^version = .*/version = \"$$ver\"/" Cargo.toml && \
+	echo "Synced Cargo.toml version to $$ver"

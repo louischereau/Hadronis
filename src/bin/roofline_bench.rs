@@ -65,7 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut chart = ChartBuilder::on(&root)
         .caption(
-            "Valence Core: Advanced Roofline Analysis",
+            "Hadronis Core: Advanced Roofline Analysis",
             ("sans-serif", 40),
         )
         .margin(30)

@@ -1,5 +1,5 @@
 [project]
-name = "valence"
+name = "hadronis"
 version = "0.1.1"
 description = "High-performance Geometric GNN Engine"
 license = {text = "MIT OR Apache-2.0"}
@@ -40,7 +40,7 @@ build-backend = "maturin"
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
-module-name = "valence._lowlevel" # Common pattern: hide Rust behind a Python wrapper
+module-name = "hadronis._lowlevel" # Common pattern: hide Rust behind a Python wrapper
 
 [tool.uv]
 # This tells uv to watch your Rust files for changes

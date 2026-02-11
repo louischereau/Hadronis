@@ -1,18 +1,19 @@
+#![deny(clippy::correctness)]
+#![deny(clippy::perf)]
+#![deny(clippy::complexity)]
+#![warn(clippy::style)]
+#![allow(clippy::cast_precision_loss)]
+#![feature(portable_simd)]
 use pyo3::prelude::*;
 // Declare the modules
-pub mod batch;
-pub mod graph;
-pub mod model;
+pub mod core;
+pub mod engine;
 
 // Bring the structs into scope
-use crate::batch::MolecularBatch;
-use crate::graph::MolecularGraph;
-use crate::model::GNNModel;
+use crate::engine::HadronisEngine;
 
 #[pymodule]
 fn _lowlevel(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_class::<MolecularGraph>()?;
-    m.add_class::<GNNModel>()?;
-    m.add_class::<MolecularBatch>()?;
+    m.add_class::<HadronisEngine>()?;
     Ok(())
 }

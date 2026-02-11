@@ -2,55 +2,57 @@
 use codspeed_criterion_compat::{black_box, BenchmarkId, Criterion as BenchCriterion, Throughput};
 #[cfg(not(feature = "codspeed"))]
 use criterion::{black_box, BenchmarkId, Criterion as BenchCriterion, Throughput};
-use nalgebra::{DMatrix, Vector3};
+use hadronis::core::connectivity::build_batched_neighbors;
+use hadronis::core::model::GNNModel;
+use nalgebra::DMatrix;
 use numpy::ndarray;
-use valence::graph::MolecularGraph;
-use valence::model::GNNModel;
 
-fn setup_engine_data(
+fn setup_batch_data(
     n_atoms: usize,
     feat_dim: usize,
-) -> (MolecularGraph, GNNModel, ndarray::Array2<f32>) {
-    let atomic_numbers = vec![6; n_atoms];
-    let positions = (0..n_atoms)
-        .map(|_| {
-            Vector3::new(
-                rand::random::<f32>() * 20.0,
-                rand::random::<f32>() * 20.0,
-                rand::random::<f32>() * 20.0,
-            )
-        })
-        .collect();
-
-    let graph = MolecularGraph {
-        atomic_numbers,
-        positions,
-    };
+) -> (
+    ndarray::Array1<i32>,
+    ndarray::Array2<f32>,
+    ndarray::Array1<i32>,
+    ndarray::Array2<f32>,
+    GNNModel,
+) {
+    let atomic_numbers = ndarray::Array1::from_elem(n_atoms, 6);
+    let positions = ndarray::Array2::from_shape_fn((n_atoms, 3), |_| rand::random::<f32>() * 20.0);
+    let features = ndarray::Array2::from_elem((n_atoms, feat_dim), 1.0);
+    let mol_ptrs = ndarray::Array1::from_vec(vec![0, n_atoms as i32]);
     let weights = DMatrix::from_element(feat_dim, feat_dim, 0.5);
     let model = GNNModel { weights };
-    let features = ndarray::Array2::from_elem((n_atoms, feat_dim), 1.0);
-
-    (graph, model, features)
+    (atomic_numbers, positions, mol_ptrs, features, model)
 }
 
-fn bench_fused_inference_scaling(c: &mut BenchCriterion) {
-    let mut group = c.benchmark_group("Valence_Engine_Performance");
+fn bench_batch_inference_scaling(c: &mut BenchCriterion) {
+    let mut group = c.benchmark_group("Hadronis_Batch_Performance");
     let feat_dim = 64;
-
-    // Scaling analysis: Essential for showing PhysiocX how the engine handles large molecules
+    let num_rbf = 64;
     for n in &[100, 500, 1000] {
-        let (graph, model, feats) = setup_engine_data(*n, feat_dim);
-
-        // N^2 throughput is the gold standard for GNN/Molecular interaction speed
+        let (atomic_numbers, positions, mol_ptrs, features, model) = setup_batch_data(*n, feat_dim);
+        let (edge_src, edge_dst, edge_relpos_vec) =
+            build_batched_neighbors(&positions.view(), mol_ptrs.as_slice().unwrap(), 5.0, 16)
+                .unwrap();
+        let edge_relpos = ndarray::Array2::from_shape_vec(
+            (edge_relpos_vec.len(), 3),
+            edge_relpos_vec.into_iter().flatten().collect(),
+        )
+        .unwrap();
         group.throughput(Throughput::Elements((*n * *n) as u64));
-
         group.bench_with_input(BenchmarkId::from_parameter(n), n, |b, _| {
             b.iter(|| {
-                let result = graph.run_fused_with_model_internal(
-                    &model,
-                    &feats.view(),
-                    black_box(5.0),
-                    black_box(16),
+                let result = model.run_batched(
+                    atomic_numbers.as_slice().unwrap(),
+                    &positions.view(),
+                    &features.view(),
+                    &edge_src,
+                    &edge_dst,
+                    &edge_relpos,
+                    mol_ptrs.as_slice().unwrap(),
+                    5.0,
+                    num_rbf,
                 );
                 black_box(result)
             });
@@ -60,10 +62,10 @@ fn bench_fused_inference_scaling(c: &mut BenchCriterion) {
 }
 
 #[cfg(feature = "codspeed")]
-codspeed_criterion_compat::criterion_group!(benches, bench_fused_inference_scaling);
+codspeed_criterion_compat::criterion_group!(benches, bench_batch_inference_scaling);
 #[cfg(feature = "codspeed")]
 codspeed_criterion_compat::criterion_main!(benches);
 #[cfg(not(feature = "codspeed"))]
-criterion::criterion_group!(benches, bench_fused_inference_scaling);
+criterion::criterion_group!(benches, bench_batch_inference_scaling);
 #[cfg(not(feature = "codspeed"))]
 criterion::criterion_main!(benches);

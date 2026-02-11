@@ -7,7 +7,8 @@ import numpy as np
 import psutil
 
 from memory_tracker import track_memory
-from valence import Molecule, ValenceEngine
+import hadronis
+from safetensors.numpy import save_file
 
 
 def get_memory_mb():
@@ -17,9 +18,17 @@ def get_memory_mb():
 
 @track_memory
 def run_engine(
-    engine: ValenceEngine, molecules: list[Molecule], features_list: list[np.ndarray]
+    engine: hadronis.HadronisEngine, atomic_numbers, positions, mol_ptrs, features
 ):
-    return engine.predict_batch(molecules, features_list)
+    return engine.predict_batch(
+        atomic_numbers,
+        positions,
+        features,
+        mol_ptrs,
+        cutoff=1.2,
+        k=8,
+        num_rbf=64,
+    )
 
 
 def run_stress_test():
@@ -28,30 +37,24 @@ def run_stress_test():
     print(f"Initial Memory: {initial_mem:.2f} MB")
 
     # 1. Initialize Engine
-    # Save random weights to a temporary .npy file
+    # Save random weights to a temporary safetensors file
     weights = np.random.rand(64, 64).astype(np.float32)
-    weights_path = "./tmp_stress_weights.npy"
-    np.save(weights_path, weights)
-    engine = ValenceEngine(weight_path=weights_path)
+    weights_path = "./tmp_stress_weights.safetensors"
+    save_file({"weights": weights}, weights_path)
+    engine = hadronis.HadronisEngine(weights_path)
 
     # 2. Generate a large batch of molecules
-    # Testing 100 molecules with 1000 atoms each
     batch_size = 100
     atoms_per_mol = 1000
     print(f"Creating batch: {batch_size} molecules, {atoms_per_mol} atoms each...")
 
-    molecules = [
-        Molecule(
-            atomic_numbers=[6] * atoms_per_mol,
-            positions=np.random.rand(atoms_per_mol, 3).tolist(),
-        )
-        for _ in range(batch_size)
-    ]
-
-    # 3. Prepare features for each molecule
-    features_list = [
-        np.random.rand(atoms_per_mol, 64).astype(np.float32) for _ in range(batch_size)
-    ]
+    # Concatenate all molecules into batch arrays
+    atomic_numbers = np.repeat(6, batch_size * atoms_per_mol).astype(np.int32)
+    positions = np.random.rand(batch_size * atoms_per_mol, 3).astype(np.float32)
+    features = np.random.rand(batch_size * atoms_per_mol, 64).astype(np.float32)
+    mol_ptrs = np.arange(
+        0, batch_size * atoms_per_mol + 1, atoms_per_mol, dtype=np.int32
+    )
 
     # 4. Execution Loop
     print("Running inference...")
@@ -59,11 +62,11 @@ def run_stress_test():
 
     # We run this multiple times to see if memory keeps climbing (a leak)
     for i in range(5):
-        results = run_engine(engine, molecules, features_list)
+        results = run_engine(engine, atomic_numbers, positions, mol_ptrs, features)
         gc.collect()  # Force Python to clean up finished result objects
         current_mem = get_memory_mb()
         print(
-            f"  Iteration {i + 1}: Mem = {current_mem:.2f} MB | Results = {len(results)}"
+            f"  Iteration {i + 1}: Mem = {current_mem:.2f} MB | Results shape = {results.shape}"
         )
 
     end_time = time.perf_counter()
@@ -73,7 +76,6 @@ def run_stress_test():
     print(f"Total Throughput: {batch_size * 5 / total_time:.2f} molecules/sec")
 
     # 4. Cleanup & Final Leak Check
-    del molecules
     del results
     time.sleep(1)  # Give OS a second to reclaim
 
