@@ -27,11 +27,6 @@ $(INSTALL_STAMP): pyproject.toml | $(VENV)
 	$(UV) pip install -e .[dev]
 	@touch $(INSTALL_STAMP)
 
-dev: $(INSTALL_STAMP)
-	@echo "--- Editable install (Python package) ---"
-	$(UV) run python -m pip install -e .
-
-
 build:
 	mkdir -p build
 	cmake -S . -B build -DHADRONIS_ENABLE_SIMD=ON
@@ -52,7 +47,7 @@ lint: $(INSTALL_STAMP)
 	$(UV) run ruff check python/
 	$(UV) run ruff format --check python/
 
-test: $(INSTALL_STAMP)
+test-python: $(INSTALL_STAMP)
 	$(UV) run pytest tests/
 
 test-cpp:
@@ -61,4 +56,4 @@ test-cpp:
 	cmake --build build
 	ctest --test-dir build
 
-test-all: test test-cpp
+test: test-python test-cpp
