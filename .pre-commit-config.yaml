@@ -8,10 +8,9 @@ repos:
         language: system
         types_or: [c, c++]
 
-      - id: ruff-check
-        name: ruff lint
-        description: Lint Python code with ruff
-        entry: uv run ruff check --quiet
+      - id: ruff-imports
+        name: ruff import sort
+        entry: uv run ruff check --select I --fix
         language: system
         types: [python]
         require_serial: true
@@ -22,6 +21,14 @@ repos:
         entry: uv run ruff format
         language: system
         types: [python]
+
+      - id: ruff-check
+        name: ruff lint
+        description: Lint Python code with ruff
+        entry: uv run ruff check --quiet
+        language: system
+        types: [python]
+        require_serial: true
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0

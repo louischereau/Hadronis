@@ -21,6 +21,12 @@ jobs:
           enable-cache: true      # Automatically caches your Python dependencies
           version: "latest"
 
+      - name: Setup Python
+        run: uv python install 3.12
+
+      - name: Sync Python dependencies
+        run: uv sync --group dev
+
       # 2. Install C++ tooling
       - name: Install clang-format, clang-tidy, pybind11
         run: |
@@ -50,24 +56,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
           version: "latest"
 
-      - name: Install build helper
-        run: uv pip install build
+      - name: Setup Python
+        run: uv python install 3.12
+
+      - name: Sync Python dependencies
+        run: uv sync --group dev
 
       - name: Install C++ dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y pybind11-dev
 
-      - name: Build & Run Tests (Python + C++)
+      - name: Run Tests (Python + C++)
         run: |
-          # Build and install the wheel into the uv-managed environment
-          uv run python -m pip install .
+          # Run Python tests in the uv-managed environment (project already installed by `uv sync`)
           uv run pytest tests/ --durations=5
 
           # Build C++ targets and run C++ tests
@@ -86,7 +94,10 @@ jobs:
           version: "latest"
 
       - name: Install build tooling
-        run: uv pip install build twine
+        run: |
+          uv python install 3.12
+          uv sync --group dev
+          uv pip install twine
 
       - name: Build wheel and sdist
         run: uv run python -m build

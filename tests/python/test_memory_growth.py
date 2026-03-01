@@ -2,12 +2,10 @@ import gc
 import os
 import time
 
+import hadronis
 import numpy as np
 import psutil
 import pytest
-
-import hadronis
-
 
 pytestmark = pytest.mark.no_codspeed
 
@@ -72,6 +70,6 @@ def test_memory_growth_under_repeated_inference():
 
     # Turn very large growth into a test failure so CI catches regressions.
     # Threshold is intentionally generous to avoid noise from allocator/OS.
-    assert (
-        leak < 200.0
-    ), f"[POTENTIAL LEAK] RSS grew by {leak:.2f} MB during repeated inference"
+    assert leak < 200.0, (
+        f"[POTENTIAL LEAK] RSS grew by {leak:.2f} MB during repeated inference"
+    )
