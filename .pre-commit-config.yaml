@@ -1,0 +1,33 @@
+repos:
+  - repo: local
+    hooks:
+      - id: clang-format
+        name: clang-format C/C++
+        description: Format C/C++ code with clang-format
+        entry: clang-format -i
+        language: system
+        types_or: [c, c++]
+
+      - id: ruff-check
+        name: ruff lint
+        description: Lint Python code with ruff
+        entry: uv run ruff check --quiet
+        language: system
+        types: [python]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff format
+        description: Format Python code with ruff
+        entry: uv run ruff format
+        language: system
+        types: [python]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-added-large-files
+      - id: check-yaml
+      - id: check-toml

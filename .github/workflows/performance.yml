@@ -1,0 +1,42 @@
+name: CodSpeed Benchmarks
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# # Ensure only one CI run happens per ref
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Setup Python
+        run: uv python install 3.12
+
+      - name: Install project and benchmark tooling
+        run: |
+          uv pip install .
+          uv pip install pytest-codspeed
+
+      - name: Run CodSpeed benchmarks
+        uses: CodSpeedHQ/action@v4.10.4
+        with:
+          mode: simulation
+          run: uv run pytest --codspeed -m "not no_codspeed"

@@ -1,0 +1,93 @@
+[project]
+name = "hadronis"
+version = "0.1.1"
+description = "High-performance Geometric GNN Engine"
+license = {text = "MIT OR Apache-2.0"}
+authors = [{name = "Louis Chereau"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy",
+    "psutil>=7.2.2",
+    "pydantic>=2.0",
+]
+
+
+[tool.semantic_release]
+version_variable = [
+  "pyproject.toml:version",
+]
+branch = "main"
+build_command = "python -m build --wheel --sdist"
+upload_to_pypi = false
+upload_to_release = false
+tag_format = "v{version}"
+
+# Standard way to define dev tools
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "pre-commit",
+    "build",
+    "pybind11",
+    "cmake",
+    "ninja",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+  "pre-commit",
+  "build",
+  "pybind11",
+  "cmake",
+  "ninja",
+]
+
+[build-system]
+requires = [
+  "scikit-build-core[pyproject]>=0.10",
+  "pybind11>=2.10",
+]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+wheel.packages = ["python/hadronis"]
+
+[tool.scikit-build.sdist]
+include = [
+  "CMakeLists.txt",
+  "src/**",
+  "python/**",
+]
+
+[tool.cibuildwheel]
+build = "cp310-* cp311-* cp312-*"
+skip = "pp* *-musllinux_*"
+test-extras = ["dev"]
+test-command = "pytest {project}/tests"
+
+[tool.uv]
+# Keep cache keys aligned with the actual C++/Python project layout
+cache-keys = [
+  {file = "pyproject.toml"},
+  {file = "CMakeLists.txt"},
+  {file = "src/**/*.cpp"},
+  {file = "python/**/*.py"},
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+markers = [
+  "no_codspeed: tests that should not be run under CodSpeed benchmarking",
+]
