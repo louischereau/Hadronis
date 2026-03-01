@@ -96,6 +96,7 @@ jobs:
       - name: Upload wheels to GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           TAG="$(git describe --tags --abbrev=0)"
           if ! gh release view "$TAG" >/dev/null 2>&1; then
