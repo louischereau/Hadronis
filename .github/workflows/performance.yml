@@ -32,7 +32,7 @@ jobs:
 
       - name: Install project and benchmark tooling
         run: |
-          uv pip install .
+          uv sync --group dev
           uv pip install pytest-codspeed
 
       - name: Run CodSpeed benchmarks

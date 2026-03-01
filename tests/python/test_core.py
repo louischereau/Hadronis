@@ -1,7 +1,6 @@
+import hadronis
 import numpy as np
 import pytest
-import hadronis
-
 
 pytestmark = pytest.mark.no_codspeed
 

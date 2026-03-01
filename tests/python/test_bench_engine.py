@@ -1,8 +1,6 @@
+import hadronis
 import numpy as np
 import pytest
-
-import hadronis
-
 
 # Only enable these benchmarks when pytest-codspeed is installed (e.g. in CI
 # performance runs). Local "uv run pytest tests/" will then skip them rather

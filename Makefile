@@ -37,7 +37,7 @@ build:
 	cmake -S . -B build -DHADRONIS_ENABLE_SIMD=ON
 	cmake --build build
 	@echo "--- C++/pybind11 engine built (SIMD enabled) ---"
-	
+
 format: $(INSTALL_STAMP)
 	@echo "--- Formatting C++ sources with clang-format ---"
 	clang-format -i $(CPP_SOURCES)

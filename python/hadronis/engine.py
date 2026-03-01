@@ -1,6 +1,6 @@
+import _lowlevel
 import numpy as np
 from numpy.typing import NDArray
-import _lowlevel
 
 
 class Engine:
@@ -71,4 +71,6 @@ def compile(
         engine = hadronis.compile("painn.bin", cutoff=5.0, max_neighbors=64)
     """
 
-    return Engine(weight_path, cutoff=cutoff, max_neighbors=max_neighbors, n_threads=n_threads)
+    return Engine(
+        weight_path, cutoff=cutoff, max_neighbors=max_neighbors, n_threads=n_threads
+    )
