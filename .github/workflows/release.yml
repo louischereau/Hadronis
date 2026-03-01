@@ -37,8 +37,6 @@ jobs:
           uv pip install twine
           uv pip install python-semantic-release==7.34.6
           uv pip install build
-
-
       # 5. Semantic-release: compute version, commit, tag, GitHub release
       - name: Semantic release (version bump + commit + tag)
         working-directory: ${{ github.workspace }}
@@ -52,7 +50,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 6. Build wheels with maturin (after version bump)
+      # 6. Build sdist with python -m build (after version bump)
       - name: Build sdist
         run: |
           uv run python -m build --sdist
@@ -62,8 +60,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-            TAG="$(git describe --tags --abbrev=0)"
-            gh release upload "$TAG" dist/*.tar.gz --clobber
+          TAG="$(git describe --tags --abbrev=0)"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --notes ""
+          fi
+          gh release upload "$TAG" dist/*.tar.gz --clobber
 
   build-wheels:
     needs: release
@@ -97,6 +98,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="$(git describe --tags --abbrev=0)"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --notes ""
+          fi
           gh release upload "$TAG" dist/*.whl --clobber
 
   publish-pypi:
@@ -125,6 +129,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="$(git describe --tags --abbrev=0)"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "No GitHub release found for tag $TAG; nothing to download."
+            exit 0
+          fi
           mkdir -p dist
           gh release download "$TAG" --dir dist
 
