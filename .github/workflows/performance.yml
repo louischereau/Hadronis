@@ -3,6 +3,8 @@ name: CodSpeed Benchmarks
 on:
   pull_request:
     branches: [ main ]
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 # # Ensure only one CI run happens per ref
