@@ -87,3 +87,12 @@ jobs:
             gh release create "$TAG" --notes ""
           fi
           gh release upload "$TAG" dist/*.whl --clobber
+
+      - name: Upload wheels to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install twine
+          python -m twine upload --skip-existing dist/*.whl
