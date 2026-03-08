@@ -4,7 +4,7 @@ UV := uv
 INSTALL_STAMP := $(VENV)/.install_stamp
 CPP_SOURCES := $(wildcard src/*.cpp)
 
-.PHONY: help dev release test test-cpp test-all lint format clean bench format-cpp lint-cpp
+.PHONY: help dev release test test-cpp test-all lint format clean bench format-cpp lint-cpp perf perf-report perf-stat perf-threads
 
 help:
 	@echo "Hadronis Development:"
@@ -18,6 +18,10 @@ help:
 	@echo "  test-cpp    Build and run C++ tests (ctest)"
 	@echo "  test-all    Run both Python and C++ tests"
 	@echo "  clean       Nuke build artifacts and venv"
+	@echo "  perf        Profile Hadronis single-molecule latency with perf"
+	@echo "  perf-report Open perf report for latest run"
+	@echo "  perf-stat   perf stat on single-molecule latency benchmark"
+	@echo "  perf-threads perf stat on thread-scaling benchmark"
 
 $(VENV):
 	$(UV) venv $(VENV)
@@ -57,3 +61,21 @@ test-cpp:
 	ctest --test-dir build
 
 test: test-python test-cpp
+
+perf: $(INSTALL_STAMP)
+	perf record -F 99 -g -- \
+		$(UV) run python benchmarks/python/benchmark_single_molecule_latency.py \
+			--backend hadronis --sizes 256 --n-warmup 100 --n-iters 2000
+
+perf-report:
+	perf report
+
+perf-stat: $(INSTALL_STAMP)
+	perf stat -r 5 -d -e cycles,instructions,branches,branch-misses,cache-references,cache-misses -- \
+		$(UV) run python benchmarks/python/benchmark_single_molecule_latency.py \
+			--backend hadronis --sizes 256 --n-warmup 100 --n-iters 2000
+
+perf-threads: $(INSTALL_STAMP)
+	perf stat -r 3 -d -e cycles,instructions,branches,branch-misses,cache-references,cache-misses -- \
+		$(UV) run python benchmarks/python/benchmark_thread_scaling.py \
+			--sizes 64,256,1024 --threads 1,2,4,8,16 --n-warmup 50 --n-iters 1000
