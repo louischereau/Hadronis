@@ -4,7 +4,7 @@ UV := uv
 INSTALL_STAMP := $(VENV)/.install_stamp
 CPP_SOURCES := $(wildcard src/*.cpp)
 
-.PHONY: help dev release test test-cpp test-all lint format clean bench format-cpp lint-cpp perf perf-report perf-stat perf-threads
+.PHONY: help dev release test test-cpp test-all lint format clean bench benchmark format-cpp lint-cpp perf perf-report perf-stat perf-threads
 
 help:
 	@echo "Hadronis Development:"
@@ -79,3 +79,13 @@ perf-threads: $(INSTALL_STAMP)
 	perf stat -r 3 -d -e cycles,instructions,branches,branch-misses,cache-references,cache-misses -- \
 		$(UV) run python benchmarks/python/benchmark_thread_scaling.py \
 			--sizes 64,256,1024 --threads 1,2,4,8,16 --n-warmup 50 --n-iters 1000
+
+bench: $(INSTALL_STAMP)
+	@echo "--- Benchmark: single-molecule latency (Hadronis + PyTorch PaiNN) ---"
+	$(UV) run python benchmarks/python/benchmark_single_molecule_latency.py --backend both
+	@echo
+	@echo "--- Benchmark: MD-style trace ---"
+	$(UV) run python benchmarks/python/benchmark_md_trace.py
+	@echo
+	@echo "--- Benchmark: thread-scaling ---"
+	$(UV) run python benchmarks/python/benchmark_thread_scaling.py

@@ -1,6 +1,6 @@
 [project]
 name = "hadronis"
-version = "0.1.0"
+version = "0.2.0"
 description = "High-performance Geometric GNN Engine"
 license = {text = "MIT OR Apache-2.0"}
 authors = [{name = "Louis Chereau"}]
@@ -23,11 +23,12 @@ version_variable = [
   "pyproject.toml:version",
 ]
 branch = "main"
-build_command = "python -m build --wheel --sdist"
+build_command = "python -m build --sdist"
 upload_to_pypi = true
 upload_to_release = true
 tag_format = "v{version}"
 version_source = "tag"
+dist_glob_patterns = ["dist/*.tar.gz"]
 
 # Standard way to define dev tools
 [dependency-groups]

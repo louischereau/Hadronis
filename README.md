@@ -1,9 +1,6 @@
 # Hadronis
 
-[![PyPI version](https://img.shields.io/pypi/v/hadronis)](https://pypi.org/project/hadronis/)
-[![Python versions](https://img.shields.io/pypi/pyversions/hadronis)](https://pypi.org/project/hadronis/)
-[![PyPI downloads](https://img.shields.io/pypi/dm/hadronis)](https://pypi.org/project/hadronis/)
-[![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance%20Tracking-blue?logo=github&style=flat-square)](https://codspeed.io/louischereau/Hadronis?utm_source=badge)
+[![PyPI version](https://img.shields.io/pypi/v/hadronis?cacheSeconds=3600)](https://pypi.org/project/hadronis/) [![Python versions](https://img.shields.io/pypi/pyversions/hadronis?cacheSeconds=3600)](https://pypi.org/project/hadronis/) [![PyPI downloads](https://img.shields.io/pypi/dm/hadronis)](https://pypi.org/project/hadronis/) [![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance%20Tracking-blue?logo=github&style=flat-square)](https://codspeed.io/louischereau/Hadronis?utm_source=badge)
 
 
 **A minimal, CPU-Optimized PaiNN Inference Pipeline for Molecular Graph Neural Networks**
@@ -32,22 +29,22 @@ Compared to models such as MACE, which use higher-order equivariant features and
 
 ## Architecture
 
-At a high level, Hadronis turns a single molecular configuration into per-atom (and optionally aggregated) predictions via the following stages:
+**Architecture (single configuration → prediction)**
 
-```mermaid
-graph LR
-    A[Atomic numbers Z, atomic positions R]
-        --> B[Neighbor list (cutoff, max_neighbors)]
-    B --> C[Pairwise distances d_ij]
-    C --> D[RBF expansion RBF_i(d_ij)]
-    D --> E[PaiNN interaction blocks (message passing + updates)]
-    E --> F[Per-atom outputs (e.g. energies, features)]
-    F --> G[Optional aggregation (sum/mean over atoms)]
-```
+## Architecture
+
+| Stage | Transformation | Description |
+|-------|----------------|-------------|
+| 1. Input            | (Z, R) → neighbor list      | Atomic numbers Z and positions R for a single configuration. |
+| 2. Neighbor graph   | neighbor list → distances dᵢⱼ | Build a fixed-size neighbor list (cutoff, max_neighbors) and compute interatomic distances. |
+| 3. RBF features     | dᵢⱼ → RBFᵢ(dᵢⱼ)            | Expand distances into radial basis function features. |
+| 4. PaiNN blocks     | RBF features → learned features | Apply PaiNN-style equivariant message passing and feature updates. |
+| 5. Per-atom outputs | features → per-atom scalars | Map final features to per-atom predictions (e.g. energy contributions). |
+| 6. Aggregation      | per-atom → global           | Optionally aggregate (e.g. sum) to obtain global quantities. |
 
 - **Inputs (Z, R)**: A single frame of atomic numbers and 3D coordinates for one molecule or configuration.
 - **Neighbor list**: For each atom, Hadronis builds a fixed-size list of nearby atoms based on a distance cutoff and `max_neighbors`, which drives both accuracy and performance.
-- **Distances and RBFs**: Interatomic distances along edges are expanded into a bank of radial basis functions $RBF_i(d)$, giving a smooth, expressive representation of local geometry.
+- **Distances and RBFs**: Interatomic distances along edges are expanded into a bank of radial basis functions RBFᵢ(d), giving a smooth, expressive representation of local geometry.
 - **PaiNN interaction blocks**: Stacked PaiNN-style layers update scalar and vector features using equivariant message passing over the neighbor graph, encoding chemistry-aware local environments.
 - **Readout and aggregation**: Final features are mapped to per-atom scalars (e.g. energy contributions) and optionally aggregated (e.g. summed) to produce global quantities.
 
@@ -61,9 +58,9 @@ Hadronis builds molecular graphs from atomic coordinates and atomic numbers, rep
 	 - Edge features are expanded using Radial Basis Functions (RBFs), a standard technique in molecular machine learning.
 	 - The typical RBF expansion formula is:
 
-		 $RBF_i(d) = \exp(-\gamma (d - \mu_i)^2)$
+		 RBFᵢ(d) = exp(-γ (d − μᵢ)²)
 
-		 where $d$ is the interatomic distance, $\mu_i$ is the center of the $i$-th basis function, and $\gamma$ controls the width.
+		 where d is the interatomic distance, μᵢ is the center of the i-th basis function, and γ controls the width.
 
 	 - RBF expansion transforms raw interatomic distances into a smooth, differentiable feature space, improving the GNN’s ability to learn complex spatial relationships.
 	 - This is critical for capturing both short-range (covalent) and long-range (non-covalent) interactions.
