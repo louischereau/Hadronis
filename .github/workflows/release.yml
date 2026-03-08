@@ -50,6 +50,7 @@ jobs:
             -D commit_author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
 
   build-wheels:
     needs: release
