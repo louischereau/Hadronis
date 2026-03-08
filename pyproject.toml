@@ -28,7 +28,7 @@ upload_to_pypi = true
 upload_to_release = true
 tag_format = "v{version}"
 version_source = "tag"
-dist_glob_patterns = ["dist/*.tar.gz"]
+dist_glob_patterns = "dist/*.tar.gz"
 
 # Standard way to define dev tools
 [dependency-groups]
