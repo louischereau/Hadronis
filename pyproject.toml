@@ -24,10 +24,10 @@ version_variable = [
 ]
 branch = "main"
 build_command = "python -m build --wheel --sdist"
-upload_to_pypi = false
-upload_to_release = false
+upload_to_pypi = true
+upload_to_release = true
 tag_format = "v{version}"
-version_source = "tag"
+version_source = "commit"
 
 # Standard way to define dev tools
 [dependency-groups]
