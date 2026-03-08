@@ -15,29 +15,25 @@ def _get_memory_mb() -> float:
     return process.memory_info().rss / (1024 * 1024)
 
 
-def _make_large_batch(batch_size: int = 64, atoms_per_mol: int = 512):
+def _make_large_system(batch_size: int = 64, atoms_per_mol: int = 512):
     n_atoms = batch_size * atoms_per_mol
 
     atomic_numbers = np.full(n_atoms, 6, dtype=np.int32)
     positions = np.random.rand(n_atoms, 3).astype(np.float32)
 
-    # Each molecule is a contiguous block of atoms
-    batch = np.repeat(np.arange(batch_size, dtype=np.int32), atoms_per_mol)
-    return atomic_numbers, positions, batch
+    return atomic_numbers, positions
 
 
 def test_memory_growth_under_repeated_inference():
     """Smoke test for memory leaks under a heavy, repeated workload.
 
     This is a slimmed-down version of the old stress test:
-    - Builds a large batch of atoms representing many molecules.
+    - Builds a large system of atoms.
     - Runs Engine.predict multiple times.
     - Tracks RSS before/after and flags large growth as a potential leak.
     """
 
-    atomic_numbers, positions, batch = _make_large_batch(
-        batch_size=64, atoms_per_mol=512
-    )
+    atomic_numbers, positions = _make_large_system(batch_size=64, atoms_per_mol=512)
 
     engine = hadronis.compile("dummy-weights.bin")
 
@@ -46,7 +42,7 @@ def test_memory_growth_under_repeated_inference():
 
     n_iters = 5
     for i in range(n_iters):
-        out = engine.predict(atomic_numbers, positions, batch)
+        out = engine.predict(atomic_numbers, positions)
         # Ensure result is used so it's not trivially optimized away
         assert out.shape[0] == atomic_numbers.shape[0]
 

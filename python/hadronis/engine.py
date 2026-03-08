@@ -27,9 +27,8 @@ class Engine:
         self,
         atomic_numbers: NDArray[np.int32],
         positions: NDArray[np.float32],
-        batch: NDArray[np.int32],
     ) -> np.ndarray:
-        """Run inference for a batch of atoms.
+        """Run inference for a single molecular system.
 
         Parameters
         ----------
@@ -37,22 +36,20 @@ class Engine:
             1D array of shape ``[n_atoms]`` with atomic numbers (int32).
         positions:
             2D array of shape ``[n_atoms, 3]`` with 3D coordinates (float32).
-        batch:
-            1D array of shape ``[n_atoms]`` mapping each atom to a molecule index.
         """
 
         z = np.asarray(atomic_numbers, dtype=np.int32)
         r = np.asarray(positions, dtype=np.float32)
-        b = np.asarray(batch, dtype=np.int32)
 
         if z.ndim != 1:
             raise ValueError("atomic_numbers must be 1D [n_atoms]")
         if r.shape != (z.shape[0], 3):
             raise ValueError("positions must have shape (n_atoms, 3)")
-        if b.shape != z.shape:
-            raise ValueError("batch must have shape (n_atoms,)")
 
-        return self._engine.predict(z, r, b)
+        # Internal: all atoms belong to a single molecule (index 0).
+        batch = np.zeros(z.shape[0], dtype=np.int32)
+
+        return self._engine.predict(z, r, batch)
 
 
 def compile(

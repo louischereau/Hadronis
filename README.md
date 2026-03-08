@@ -1,18 +1,21 @@
 # Hadronis
 
-[![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance%20Tracking-blue?logo=github&style=flat-square)](https://codspeed.io/louischereau/Hadronis?utm_source=badge)
+[![PyPI version](https://img.shields.io/pypi/v/hadronis)](https://pypi.org/project/hadronis/) [![Python versions](https://img.shields.io/pypi/pyversions/hadronis)](https://pypi.org/project/hadronis/) [![PyPI downloads](https://img.shields.io/pypi/dm/hadronis)](https://pypi.org/project/hadronis/) [![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance%20Tracking-blue?logo=github&style=flat-square)](https://codspeed.io/louischereau/Hadronis?utm_source=badge)
 
-**High-performance Geometric GNN Engine for Chemistry and Physics**
+
+**A minimal, CPU-Optimized PaiNN Inference Pipeline for Molecular Graph Neural Networks**
 
 ## Overview
 
-Hadronis is a high-throughput batch inference engine library for molecular graph neural networks (GNNs), designed for CPU-bound scientific computing at scale. It currently targets a PaiNN-style equivariant architecture rather than arbitrary GNNs, letting the implementation focus on optimizing a single, well-motivated model family instead of reimplementing a generic GNN framework. It combines the speed of C++ with the flexibility of Python, targeting real-world chemistry and physics applications.
+Hadronis is a low-latency, single-molecule all-in-one inference pipeline for molecular graph neural networks (GNNs), designed for CPU-bound scientific computing where per-configuration evaluation time matters. It currently targets a PaiNN-style equivariant architecture rather than arbitrary GNNs, letting the implementation focus on optimizing a single, well-motivated model family instead of reimplementing a generic GNN framework. It combines the speed of C++ with the flexibility of Python, targeting real-world chemistry and physics applications.
 
 ## Why Hadronis?
 
-Modern molecular ML has shifted from *structure → properties* (classical QSAR, hand-crafted descriptors) to *properties → structure* with large generative graph transformers. These models can propose vast numbers of candidate molecules, but validating each one with high-level quantum methods like DFT is still orders of magnitude too slow for practical screening. Hadronis focuses on the complementary direction: a high-throughput, batched structure → properties engine that can rapidly filter out physically implausible or uninteresting candidates before expensive calculations. In other words, it is designed to sit between generative models and ab initio verification, providing a fast, geometry-aware signal that helps triage large libraries.
+Many molecular ML applications now require fast, per-configuration evaluations rather than just large-batch screening. Examples include molecular dynamics (MD) and Monte Carlo simulations with learned potentials, real-time exploration of potential energy surfaces, and tight control loops where a single molecule (or a small system) must be evaluated at every step. In these regimes, the primary constraint is latency per inference rather than total throughput over huge libraries.
 
-At the same time, Hadronis is explicitly **not** a drop-in replacement for first-principles methods or experimental data. Using AI to evaluate AI-generated structures carries risks: systematic biases in the training data, failure modes on out-of-distribution chemistry, and feedback loops where the generator over-optimizes for the surrogate model instead of real physics. The goal is therefore to provide a transparent, well-engineered inference engine that is easy to benchmark, stress-test, and validate against trusted reference methods, not to claim ground truth on its own.
+Hadronis focuses on this setting: a compact, CPU-optimized structure → properties engine that can sit inside inner simulation loops or interactive workflows, providing geometry-aware predictions (for example, energies, forces, or other observables) for a single molecular configuration at a time. It is intended to be embedded in MD or other simulation codes as a surrogate for more expensive electronic-structure calculations when appropriate, or as a fast pre-screening layer to decide when higher-level methods should be called.
+
+At the same time, Hadronis is explicitly **not** a drop-in replacement for first-principles methods or experimental data. Using AI to evaluate molecular configurations carries risks: systematic biases in the training data, failure modes on out-of-distribution chemistry, and feedback loops where a simulator or generator over-optimizes for the surrogate model instead of real physics. The goal is therefore to provide a transparent, well-engineered all-in-one inference pipeline that is easy to benchmark, stress-test, and validate against trusted reference methods, not to claim ground truth on its own.
 
 ### Core Model: PaiNN
 
@@ -21,6 +24,31 @@ Hadronis is optimized around PaiNN-like message passing for molecular systems. P
 - **Equivariance built-in**: PaiNN operates on scalar and vector features in a way that is invariant to global rotations and translations of the molecular geometry. This is a natural fit for 3D chemistry, where predictions should not depend on how a molecule is oriented in space.
 - **Compact and efficient**: Compared to very large graph transformers or attention-based 3D models, PaiNN-style networks are relatively lightweight in parameter count and memory footprint. This makes them well-suited to high-throughput, CPU-oriented screening where throughput and latency matter.
 - **Targeted, not “framework-y”**: By committing to a PaiNN-style architecture, Hadronis can specialize data layouts, neighbor list construction, and kernel implementations for this one family of models instead of trying to be a general-purpose GNN engine (which frameworks like PyTorch Geometric already cover). The goal is a small, focused runtime for fast, robust inference—not a full training ecosystem.
+
+#### Why PaiNN instead of MACE?
+
+Models such as MACE use higher-order equivariant features and richer angular bases, which can deliver strong accuracy but come with significantly more complicated tensor algebra, larger hidden states, and higher per-step cost—especially on CPUs. Hadronis is deliberately focused on very low-latency, single-configuration inference, so a compact PaiNN-style architecture offers a better trade-off between physical inductive bias, implementation complexity, and raw speed. In practice this makes it easier to hand-optimise kernels, control memory use, and port weights between reference PyTorch implementations and the C++ runtime, while still retaining the key geometric equivariances needed for molecular modeling.
+
+## Architecture
+
+At a high level, Hadronis turns a single molecular configuration into per-atom (and optionally aggregated) predictions via the following stages:
+
+```mermaid
+graph LR
+    A[Atomic numbers Z, atomic positions R]
+        --> B[Neighbor list (cutoff, max_neighbors)]
+    B --> C[Pairwise distances d_ij]
+    C --> D[RBF expansion RBF_i(d_ij)]
+    D --> E[PaiNN interaction blocks (message passing + updates)]
+    E --> F[Per-atom outputs (e.g. energies, features)]
+    F --> G[Optional aggregation (sum/mean over atoms)]
+```
+
+- **Inputs (Z, R)**: A single frame of atomic numbers and 3D coordinates for one molecule or configuration.
+- **Neighbor list**: For each atom, Hadronis builds a fixed-size list of nearby atoms based on a distance cutoff and `max_neighbors`, which drives both accuracy and performance.
+- **Distances and RBFs**: Interatomic distances along edges are expanded into a bank of radial basis functions $RBF_i(d)$, giving a smooth, expressive representation of local geometry.
+- **PaiNN interaction blocks**: Stacked PaiNN-style layers update scalar and vector features using equivariant message passing over the neighbor graph, encoding chemistry-aware local environments.
+- **Readout and aggregation**: Final features are mapped to per-atom scalars (e.g. energy contributions) and optionally aggregated (e.g. summed) to produce global quantities.
 
 ## Chemistry Domain Knowledge
 
@@ -54,7 +82,7 @@ The current graph construction and cutoff design are primarily targeted at neutr
 
 ## Usage
 
-**Python Example:**
+**Python Example (single molecule, low latency):**
 ```python
 import hadronis
 import numpy as np
@@ -76,21 +104,32 @@ R = np.array([
     [0.6, -0.6, -0.6],
 ], dtype=np.float32)
 
-# Map each atom to its molecule
-batch = np.zeros(len(Z), dtype=np.int32)
-
 predictions = engine.predict(
     atomic_numbers=Z,
     positions=R,
-    batch=batch,
 )
 ```
 - **Graph Construction**: The engine automatically builds a graph using atomic positions and applies the cutoff to define edges.
 - **Inference**: The GNN processes the graph, aggregating neighbor information for each atom.
 
-## Future Work
+**MD-style inner loop (conceptual):**
+```python
+engine = hadronis.compile("painn.bin", cutoff=5.0)
 
-- **GPU backend for high-throughput inference**: Add an optional CUDA backend for neighbor list construction and message passing, while keeping the current CPU path as a portable reference. This would let Hadronis saturate modern accelerators for massive screening campaigns, without forcing GPU as a hard dependency for users who only need lightweight CPU inference.
+Z = ...  # (n_atoms,) atomic numbers
+R = R0   # (n_atoms, 3) initial positions
+
+for step in range(n_steps):
+    # advance positions using your integrator
+    R = integrator_step(R)
+
+    # low-latency single-configuration inference
+    per_atom_pred = engine.predict(Z, R)
+    total_pred = per_atom_pred.sum()
+
+    # use `total_pred` (e.g. as an energy-like scalar)
+    control_simulation(total_pred)
+```
 
 ## License
 
