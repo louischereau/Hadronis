@@ -27,7 +27,7 @@ build_command = "python -m build --wheel --sdist"
 upload_to_pypi = true
 upload_to_release = true
 tag_format = "v{version}"
-version_source = "commit"
+version_source = "tag"
 
 # Standard way to define dev tools
 [dependency-groups]

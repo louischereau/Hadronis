@@ -37,6 +37,7 @@ jobs:
           uv pip install twine
           uv pip install python-semantic-release==7.34.6
           uv pip install build
+
       # 5. Semantic-release: compute version, commit, tag, build, PyPI + GitHub release
       - name: Semantic release (version bump + commit + tag)
         working-directory: ${{ github.workspace }}
