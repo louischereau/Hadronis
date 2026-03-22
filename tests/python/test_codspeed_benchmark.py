@@ -20,8 +20,14 @@ def _make_random_system(n_atoms: int, seed: int = 0):
     # Atomic numbers roughly in the range of common organic elements
     atomic_numbers = rng.integers(1, 18, size=n_atoms, dtype=np.int32)
 
-    # Random positions in a cube (Angstroms)
-    positions = rng.normal(loc=0.0, scale=5.0, size=(n_atoms, 3)).astype(np.float32)
+    # Random positions in a cube (Angstroms) with approximately
+    # constant physical density as n_atoms grows. A spacing of
+    # ~3.5 Å per atom side length gives a reasonable density
+    # and keeps the average neighbor count O(1) so that the
+    # graph builder does not run into quadratic memory usage.
+    spacing = 3.5
+    box = float(n_atoms) ** (1.0 / 3.0) * spacing
+    positions = rng.uniform(0.0, box, size=(n_atoms, 3)).astype(np.float32)
 
     return atomic_numbers, positions
 
