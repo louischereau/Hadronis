@@ -4,7 +4,7 @@ UV := uv
 INSTALL_STAMP := $(VENV)/.install_stamp
 CPP_SOURCES := $(wildcard src/*.cpp)
 
-.PHONY: help dev release test test-cpp test-all lint format clean bench benchmark format-cpp lint-cpp perf perf-report perf-stat perf-threads
+.PHONY: help dev release test test-cpp test-all lint format clean bench benchmark bench-cpp format-cpp lint-cpp perf perf-report perf-stat perf-threads
 
 help:
 	@echo "Hadronis Development:"
@@ -17,6 +17,7 @@ help:
 	@echo "  test        Run Python test suites"
 	@echo "  test-cpp    Build and run C++ tests (ctest)"
 	@echo "  test-all    Run both Python and C++ tests"
+	@echo "  bench-cpp   Run C++ geometry microbenchmarks"
 	@echo "  clean       Nuke build artifacts and venv"
 	@echo "  perf        Profile Hadronis single-molecule latency with perf"
 	@echo "  perf-report Open perf report for latest run"
@@ -89,3 +90,9 @@ bench: $(INSTALL_STAMP)
 	@echo
 	@echo "--- Benchmark: thread-scaling ---"
 	$(UV) run python benchmarks/python/benchmark_thread_scaling.py
+
+bench-cpp:
+	mkdir -p build
+	cmake -S . -B build -DHADRONIS_ENABLE_SIMD=ON
+	cmake --build build
+	./build/src/hadronis_bench_geometry

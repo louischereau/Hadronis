@@ -15,9 +15,15 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(hadronis_gtest
     cpp/test_sanity.cpp
+    cpp/test_geometry.cpp
 )
 
 target_compile_features(hadronis_gtest PRIVATE cxx_std_23)
+
+target_include_directories(hadronis_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+)
 
 target_link_libraries(hadronis_gtest
     PRIVATE

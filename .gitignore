@@ -24,3 +24,4 @@ vtune_*/
 hadronis.egg-info/
 .vscode/
 perf*/
+perf.data

@@ -26,3 +26,21 @@ endif()
 # When building wheels via scikit-build-core, install the extension
 # at the top level so Python can import `_lowlevel`.
 install(TARGETS _lowlevel LIBRARY DESTINATION .)
+
+# Standalone C++ benchmarks for geometry and neighbor list routines
+add_executable(hadronis_bench_geometry
+	../benchmarks/cpp/bench_geometry.cpp
+)
+
+target_compile_features(hadronis_bench_geometry PRIVATE cxx_std_23)
+
+target_include_directories(hadronis_bench_geometry
+	PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_compile_options(hadronis_bench_geometry
+	PRIVATE
+		$<$<CXX_COMPILER_ID:MSVC>:/W4 /O2>
+		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -O2>
+)
