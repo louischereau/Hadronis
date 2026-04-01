@@ -36,7 +36,7 @@ target_compile_features(hadronis_bench_geometry PRIVATE cxx_std_23)
 
 target_include_directories(hadronis_bench_geometry
 	PRIVATE
-		${CMAKE_SOURCE_DIR}/src
+		${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_compile_options(hadronis_bench_geometry

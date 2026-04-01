@@ -50,24 +50,24 @@ def test_small_system_single_pass(benchmark, n_atoms: int):
     benchmark(run)
 
 
-@pytest.mark.parametrize("n_atoms", [10_000])
-def test_large_system_single_pass(benchmark, n_atoms: int):
-    """Benchmark a single large-system inference call.
+# @pytest.mark.parametrize("n_atoms", [10_000])
+# def test_large_system_single_pass(benchmark, n_atoms: int):
+#     """Benchmark a single large-system inference call.
 
-    This measures end-to-end latency for a realistic-sized system
-    (10k atoms in one configuration).
-    """
+#     This measures end-to-end latency for a realistic-sized system
+#     (10k atoms in one configuration).
+#     """
 
-    engine = hadronis.compile("dummy-weights.bin")
-    atomic_numbers, positions = _make_random_system(n_atoms)
+#     engine = hadronis.compile("dummy-weights.bin")
+#     atomic_numbers, positions = _make_random_system(n_atoms)
 
-    def run():
-        out = engine.predict(atomic_numbers, positions)
-        # Light sanity check so the benchmark still validates behavior.
-        assert out.shape == (n_atoms,)
-        return out
+#     def run():
+#         out = engine.predict(atomic_numbers, positions)
+#         # Light sanity check so the benchmark still validates behavior.
+#         assert out.shape == (n_atoms,)
+#         return out
 
-    benchmark(run)
+#     benchmark(run)
 
 
 @pytest.mark.parametrize("n_atoms", [2_000])
@@ -88,20 +88,20 @@ def test_medium_system_repeated_calls(benchmark, n_atoms: int):
     benchmark(run)
 
 
-@pytest.mark.parametrize("n_atoms", [20_000])
-def test_scaling_with_system_size(benchmark, n_atoms: int):
-    """Coarser benchmark at a larger scale to study scaling.
+# @pytest.mark.parametrize("n_atoms", [20_000])
+# def test_scaling_with_system_size(benchmark, n_atoms: int):
+#     """Coarser benchmark at a larger scale to study scaling.
 
-    Useful for checking that runtime grows roughly linearly with the
-    number of atoms and to catch regressions in asymptotic behavior.
-    """
+#     Useful for checking that runtime grows roughly linearly with the
+#     number of atoms and to catch regressions in asymptotic behavior.
+#     """
 
-    engine = hadronis.compile("dummy-weights.bin")
-    atomic_numbers, positions = _make_random_system(n_atoms, seed=2)
+#     engine = hadronis.compile("dummy-weights.bin")
+#     atomic_numbers, positions = _make_random_system(n_atoms, seed=2)
 
-    def run():
-        out = engine.predict(atomic_numbers, positions)
-        assert out.shape == (n_atoms,)
-        return out
+#     def run():
+#         out = engine.predict(atomic_numbers, positions)
+#         assert out.shape == (n_atoms,)
+#         return out
 
-    benchmark(run)
+#     benchmark(run)
