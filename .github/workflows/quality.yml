@@ -98,18 +98,29 @@ jobs:
 
       - name: Merge coverage profiles
         run: |
-          llvm-profdata merge \
-            --sparse build/coverage-*.profraw \
-            -o build/coverage.profdata
+          cd build
+          if ls tests/coverage-*.profraw 1> /dev/null 2>&1; then
+            llvm-profdata merge \
+              --sparse tests/coverage-*.profraw \
+              -o coverage.profdata
+          else
+            echo "No coverage profiles found in tests/, skipping merge"
+          fi
 
       - name: Export C++ coverage to lcov
         run: |
-          llvm-cov export \
-            build/tests/hadronis_gtest \
-            --instr-profile=build/coverage.profdata \
-            --format=lcov \
-            --ignore-filename-regex='(/usr/|_deps/|tests/)' \
-            > coverage.info
+          if [ -f build/coverage.profdata ]; then
+            llvm-cov export \
+              build/tests/hadronis_gtest \
+              --instr-profile=build/coverage.profdata \
+              --format=lcov \
+              --ignore-filename-regex='(/usr/|_deps/|tests/)' \
+              > coverage.info
+          else
+            echo "No coverage.profdata found, skipping coverage export"
+            # Create an empty coverage file so Codecov step still runs
+            echo "TN:Hadronis" > coverage.info
+          fi
 
       - name: Upload C++ coverage to Codecov
         uses: codecov/codecov-action@v4

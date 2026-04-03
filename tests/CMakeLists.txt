@@ -30,6 +30,16 @@ target_link_libraries(hadronis_gtest
         GTest::gtest_main
 )
 
+# When built with Clang, enable coverage instrumentation on the C++ test
+# binary so that LLVM_PROFILE_FILE is honoured and .profraw files are
+# produced for llvm-profdata/llvm-cov.
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(hadronis_gtest PRIVATE
+        -fprofile-instr-generate -fcoverage-mapping)
+    target_link_options(hadronis_gtest PRIVATE
+        -fprofile-instr-generate)
+endif()
+
 include(GoogleTest)
 
 gtest_discover_tests(hadronis_gtest)
