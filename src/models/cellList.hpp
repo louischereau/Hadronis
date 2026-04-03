@@ -60,6 +60,13 @@ struct CellList {
 
   // Build linked lists from current positions — O(N)
   void build(const std::vector<Vec3> &pos) {
+    // Ensure the "next" array is large enough for the current number of
+    // particles. The constructor originally sized this from an "N" parameter,
+    // but build() should remain correct even if pos.size() changes.
+    if (next.size() < pos.size()) {
+      next.resize(pos.size(), -1);
+    }
+
     std::fill(head.begin(), head.end(), -1); // reset all cells to empty
     for (int i = static_cast<int>(pos.size()) - 1; i >= 0;
          --i) // iterate over each particle

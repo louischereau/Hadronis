@@ -52,7 +52,7 @@ public:
     const float r_skin = 0.5f * cutoff_;
     constexpr int kNumRbf = 32;
 
-    graph_builder_ = GraphBuilder(N, box_size, r_cut, r_skin, kNumRbf, cutoff_);
+    graph_builder_ = GraphBuilder(N, box_size, r_cut, r_skin, kNumRbf);
     graph_builder_.build(pos);
 
     // TODO: Run the GNN model using graph_builder_.edge_graph and

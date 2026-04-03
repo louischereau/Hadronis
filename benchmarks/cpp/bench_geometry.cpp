@@ -79,7 +79,7 @@ void bench_rbf(int num_rbf, float cutoff, int num_distances, int iters) {
 void bench_graph_builder(int N, float box_size, float r_cut, float r_skin,
                          int num_rbf, int iters) {
   auto pos = make_random_positions(N, box_size);
-  GraphBuilder gb(N, box_size, r_cut, r_skin, num_rbf, r_cut);
+  GraphBuilder gb(N, box_size, r_cut, r_skin, num_rbf);
 
   // Warmup
   gb.build(pos);

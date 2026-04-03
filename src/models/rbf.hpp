@@ -36,10 +36,16 @@ struct RadialBasis {
   // Expand a single distance d → [num_rbf] features and append to an output
   // buffer.
   void expand_append(float d, std::vector<float> &out) const {
-    out.reserve(out.size() + centers.size());
-    for (size_t i = 0; i < centers.size(); ++i) {
-      float diff = d - centers[i];
-      out.push_back(std::exp(-(diff * diff) * inv_width2));
+    const std::size_t n = centers.size();
+    const std::size_t offset = out.size();
+    out.resize(offset + n);
+
+    const float *__restrict center_ptr = centers.data();
+    float *__restrict out_ptr = out.data() + offset;
+
+    for (std::size_t i = 0; i < n; ++i) {
+      float diff = d - center_ptr[i];
+      out_ptr[i] = expf(-(diff * diff) * inv_width2);
     }
   }
 };

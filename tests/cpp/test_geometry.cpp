@@ -78,7 +78,7 @@ TEST(GraphBuilderTest, BuildsExpectedGraph) {
       Vec3{9.5f, 9.5f, 9.5f}  // atom 2 (within r_cut of 0 via PBC)
   };
 
-  GraphBuilder gb(N, box_size, r_cut, r_skin, num_rbf, r_cut);
+  GraphBuilder gb(N, box_size, r_cut, r_skin, num_rbf);
   gb.build(pos);
 
   // Expect exactly two unique edges: (0,1) and (0,2), stored once each

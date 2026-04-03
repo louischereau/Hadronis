@@ -71,17 +71,52 @@ jobs:
       - name: Install C++ dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pybind11-dev
+          sudo apt-get install -y pybind11-dev clang llvm llvm-profdata llvm-cov
 
-      - name: Run Tests (Python + C++)
+      - name: Run Python tests
+        run: uv run pytest tests/ --durations=5
+
+      - name: Configure CMake with coverage flags (Clang)
         run: |
-          # Run Python tests in the uv-managed environment (project already installed by `uv sync`)
-          uv run pytest tests/ --durations=5
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate" \
+            -DHADRONIS_ENABLE_SIMD=ON
 
-          # Build C++ targets and run C++ tests
-          cmake -S . -B build -DHADRONIS_ENABLE_SIMD=ON
-          cmake --build build
-          ctest --test-dir build
+      - name: Build C++ tests (coverage)
+        run: cmake --build build --config Debug
+
+      - name: Run C++ tests with coverage
+        env:
+          LLVM_PROFILE_FILE: build/coverage-%p.profraw
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Merge coverage profiles
+        run: |
+          llvm-profdata merge \
+            --sparse build/coverage-*.profraw \
+            -o build/coverage.profdata
+
+      - name: Export C++ coverage to lcov
+        run: |
+          llvm-cov export \
+            build/tests/hadronis_gtest \
+            --instr-profile=build/coverage.profdata \
+            --format=lcov \
+            --ignore-filename-regex='(/usr/|_deps/|tests/)' \
+            > coverage.info
+
+      - name: Upload C++ coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.info
+          fail_ci_if_error: false
+          flags: cpp
+          name: cpp-coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     runs-on: ubuntu-latest
