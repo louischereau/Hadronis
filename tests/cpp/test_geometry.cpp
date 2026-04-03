@@ -24,7 +24,7 @@ TEST(RadialBasisTest, CentersAndWidths) {
 
   // Expanding at the middle center should give maximum response there
   std::vector<float> out;
-  rb.expand(1.5f, out);
+  rb.expand_append(1.5f, out);
 
   ASSERT_EQ(out.size(), rb.centers.size());
   EXPECT_GT(out[1], out[0]);

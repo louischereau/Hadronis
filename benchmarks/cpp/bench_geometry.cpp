@@ -53,20 +53,25 @@ void bench_rbf(int num_rbf, float cutoff, int num_distances, int iters) {
     ds[i] = dist(rng);
 
   std::vector<float> out;
-  // Warmup
+  // Warmup: simulate typical usage where we append all distances into
+  // a single pre-reserved buffer.
+  out.clear();
+  out.reserve(static_cast<std::size_t>(num_distances) * rb.centers.size());
   for (int i = 0; i < num_distances; ++i)
-    rb.expand(ds[i], out);
+    rb.expand_append(ds[i], out);
 
   auto start = Clock::now();
   for (int it = 0; it < iters; ++it) {
+    out.clear();
+    out.reserve(static_cast<std::size_t>(num_distances) * rb.centers.size());
     for (int i = 0; i < num_distances; ++i)
-      rb.expand(ds[i], out);
+      rb.expand_append(ds[i], out);
   }
   auto end = Clock::now();
 
   double ms = std::chrono::duration<double, std::milli>(end - start).count();
   double calls = static_cast<double>(num_distances) * iters;
-  std::cout << "RadialBasis::expand num_rbf=" << num_rbf
+  std::cout << "RadialBasis::expand_append num_rbf=" << num_rbf
             << " distances=" << num_distances << " iters=" << iters
             << " time=" << ms << " ms (" << (ms * 1e3 / calls) << " us/call)\n";
 }

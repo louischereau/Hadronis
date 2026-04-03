@@ -5,8 +5,8 @@ from typing import List, Sequence
 
 from benchmark_single_molecule_latency import (
     LatencyStats,
-    compute_latency_stats,
     _generate_random_system,
+    compute_latency_stats,
 )
 
 
@@ -68,7 +68,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--sizes",
         type=str,
-        default="64,256,1024",
+        default="32,64",
         help="Comma-separated list of atom counts to benchmark.",
     )
     parser.add_argument(
@@ -86,7 +86,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--n-iters",
         type=int,
-        default=1000,
+        default=100,
         help="Number of timed iterations per configuration.",
     )
     parser.add_argument(

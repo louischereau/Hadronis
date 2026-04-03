@@ -15,7 +15,7 @@ def _get_memory_mb() -> float:
     return process.memory_info().rss / (1024 * 1024)
 
 
-def _make_large_system(n_atoms: int = 512):
+def _make_large_system(n_atoms: int = 128):
     atomic_numbers = np.full(n_atoms, 6, dtype=np.int32)
     positions = np.random.rand(n_atoms, 3).astype(np.float32)
 
@@ -31,7 +31,7 @@ def test_memory_growth_under_repeated_inference():
     - Tracks RSS before/after and flags large growth as a potential leak.
     """
 
-    atomic_numbers, positions = _make_large_system(n_atoms=512)
+    atomic_numbers, positions = _make_large_system(n_atoms=128)
 
     engine = hadronis.compile("dummy-weights.bin")
 

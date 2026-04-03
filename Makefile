@@ -2,6 +2,7 @@
 VENV := .venv
 UV := uv
 INSTALL_STAMP := $(VENV)/.install_stamp
+PROFILE_INSTALL_STAMP := $(VENV)/.install_stamp_profiled
 CPP_SOURCES := $(wildcard src/*.cpp)
 
 .PHONY: help dev release test test-cpp test-all lint format clean bench benchmark bench-cpp format-cpp lint-cpp perf perf-report perf-stat perf-threads
@@ -53,7 +54,7 @@ lint: $(INSTALL_STAMP)
 	$(UV) run ruff format --check python/
 
 test-python: $(INSTALL_STAMP)
-	$(UV) run pytest tests/
+	$(UV) run pytest -s tests/
 
 test-cpp:
 	mkdir -p build
@@ -63,7 +64,12 @@ test-cpp:
 
 test: test-python test-cpp
 
-perf: $(INSTALL_STAMP)
+$(PROFILE_INSTALL_STAMP): pyproject.toml | $(VENV)
+	@echo "--- Syncing Dependencies (profiled build) ---"
+	CMAKE_ARGS="-DHADRONIS_PROFILE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo" $(UV) pip install -e .[dev]
+	@touch $(PROFILE_INSTALL_STAMP)
+
+perf: $(PROFILE_INSTALL_STAMP)
 	perf record -F 99 -g -- \
 		$(UV) run python benchmarks/python/benchmark_single_molecule_latency.py \
 			--backend hadronis --sizes 256 --n-warmup 100 --n-iters 2000
@@ -71,19 +77,20 @@ perf: $(INSTALL_STAMP)
 perf-report:
 	perf report
 
-perf-stat: $(INSTALL_STAMP)
+perf-stat: $(PROFILE_INSTALL_STAMP)
 	perf stat -r 5 -d -e cycles,instructions,branches,branch-misses,cache-references,cache-misses -- \
 		$(UV) run python benchmarks/python/benchmark_single_molecule_latency.py \
 			--backend hadronis --sizes 256 --n-warmup 100 --n-iters 2000
 
-perf-threads: $(INSTALL_STAMP)
+perf-threads: $(PROFILE_INSTALL_STAMP)
 	perf stat -r 3 -d -e cycles,instructions,branches,branch-misses,cache-references,cache-misses -- \
 		$(UV) run python benchmarks/python/benchmark_thread_scaling.py \
 			--sizes 64,256,1024 --threads 1,2,4,8,16 --n-warmup 50 --n-iters 1000
 
-bench: $(INSTALL_STAMP)
+bench: $(PROFILE_INSTALL_STAMP)
 	@echo "--- Benchmark: single-molecule latency (Hadronis + PyTorch PaiNN) ---"
-	$(UV) run python benchmarks/python/benchmark_single_molecule_latency.py --backend both
+	$(UV) run python benchmarks/python/benchmark_single_molecule_latency.py \
+		--backend both --sizes 64 --n-warmup 5 --n-iters 20
 	@echo
 	@echo "--- Benchmark: MD-style trace ---"
 	$(UV) run python benchmarks/python/benchmark_md_trace.py

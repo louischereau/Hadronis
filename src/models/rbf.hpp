@@ -25,12 +25,13 @@ struct RadialBasis {
     inv_width2 = 1.0f / (width * width + 1e-8f);
   }
 
-  // Expand a single distance d → [num_rbf] features.
-  void expand(float d, std::vector<float> &out) const {
-    out.resize(centers.size());
+  // Expand a single distance d → [num_rbf] features and append to an output
+  // buffer.
+  void expand_append(float d, std::vector<float> &out) const {
+    out.reserve(out.size() + centers.size());
     for (size_t i = 0; i < centers.size(); ++i) {
       float diff = d - centers[i];
-      out[i] = std::exp(-(diff * diff) * inv_width2);
+      out.push_back(std::exp(-(diff * diff) * inv_width2));
     }
   }
 };

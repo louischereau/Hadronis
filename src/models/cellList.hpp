@@ -1,5 +1,6 @@
 #include "vec3.hpp"
 #include <algorithm>
+#include <array>
 #include <vector>
 #pragma once
 
@@ -29,16 +30,32 @@ struct CellList {
     return cx + nx * (cy + ny * cz);
   }
 
+  // Neighbour cell index with periodic wrapping of cell coordinates
+  int neighbour_cell_index(int cx, int cy, int cz, int dx, int dy,
+                           int dz) const {
+    const int ncx = (cx + dx + nx) % nx;
+    const int ncy = (cy + dy + ny) % ny;
+    const int ncz = (cz + dz + nz) % nz;
+    return cell_index(ncx, ncy, ncz);
+  }
+
+  // Particle position → 3D cell coordinates (clamped to valid range)
+  std::array<int, 3> cell_coords(const Vec3 &p) const {
+    int cx = static_cast<int>(p.x / cell_size);
+    int cy = static_cast<int>(p.y / cell_size);
+    int cz = static_cast<int>(p.z / cell_size);
+
+    cx = std::clamp(cx, 0, nx - 1);
+    cy = std::clamp(cy, 0, ny - 1);
+    cz = std::clamp(cz, 0, nz - 1);
+
+    return {cx, cy, cz};
+  }
+
   // Particle position → cell index (with PBC clamp)
   int cell_of(const Vec3 &p) const {
-    int cx = static_cast<int>(p.x / cell_size);
-    cx = std::clamp(cx, 0, nx - 1);
-    int cy = static_cast<int>(p.y / cell_size);
-    cy = std::clamp(cy, 0, ny - 1);
-    int cz = static_cast<int>(p.z / cell_size);
-    cz = std::clamp(cz, 0, nz - 1);
-    return cell_index(
-        cx, cy, cz); // cx, cy, cz are cell coordinates, not particle indices
+    auto [cx, cy, cz] = cell_coords(p);
+    return cell_index(cx, cy, cz);
   }
 
   // Build linked lists from current positions — O(N)

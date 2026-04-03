@@ -28,7 +28,9 @@ def _percentile(values: np.ndarray, q: float) -> float:
     return float(np.percentile(values, q))
 
 
-def compute_latency_stats(backend: str, n_atoms: int, durations_s: Sequence[float]) -> LatencyStats:
+def compute_latency_stats(
+    backend: str, n_atoms: int, durations_s: Sequence[float]
+) -> LatencyStats:
     arr = np.asarray(durations_s, dtype=np.float64)
     arr_ms = arr * 1e3
     return LatencyStats(
@@ -186,7 +188,9 @@ def benchmark_pytorch_painn(
             _ = model(cold_data)
             t1 = time.perf_counter()
 
-        cold_stats = compute_latency_stats("painn_pytorch_cold", cold_n_atoms, [t1 - t0])
+        cold_stats = compute_latency_stats(
+            "painn_pytorch_cold", cold_n_atoms, [t1 - t0]
+        )
         results.append(cold_stats)
 
     for i, n_atoms in enumerate(sizes):
@@ -287,7 +291,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--sizes",
         type=str,
-        default="16,32,64,128,256,512,1024",
+        default="32,64,128",
         help="Comma-separated list of atom counts to benchmark.",
     )
     parser.add_argument(
@@ -299,7 +303,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--n-iters",
         type=int,
-        default=1000,
+        default=20,
         help=(
             "Number of timed iterations per size. For stable p99 estimates, "
             "values >= 1000 are recommended."
