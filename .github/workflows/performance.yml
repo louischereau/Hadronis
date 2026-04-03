@@ -20,8 +20,6 @@ permissions:
 jobs:
   benchmarks:
     runs-on: ubuntu-latest
-    env:
-      CMAKE_ARGS: "-DHADRONIS_PROFILE=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo"
     steps:
       - uses: actions/checkout@v4
 
