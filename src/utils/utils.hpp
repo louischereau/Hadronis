@@ -3,6 +3,7 @@
 #include "../models/vec3.hpp"
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 inline void wrap_minimum_image(Vec3 &d, float box) {
   const float half_box = 0.5f * box;
@@ -32,7 +33,7 @@ inline int estimate_max_neighbours(int N, float box, float r_cut) {
 
   const float volume = box * box * box;
   const float neighbour_volume =
-      (4.0f / 3.0f) * static_cast<float>(M_PI) * r_cut * r_cut * r_cut;
+      (4.0f / 3.0f) * std::numbers::pi_v<float> * r_cut * r_cut * r_cut;
   const float density = static_cast<float>(N) / volume;
   const float expected_neighbours = density * neighbour_volume;
 
