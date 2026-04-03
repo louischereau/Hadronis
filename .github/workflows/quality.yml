@@ -91,7 +91,9 @@ jobs:
 
       - name: Run C++ tests with coverage
         env:
-          LLVM_PROFILE_FILE: build/coverage-%p.profraw
+          # ctest runs with --test-dir build, so we write profiles into that
+          # directory directly and later merge from build/coverage-*.profraw.
+          LLVM_PROFILE_FILE: coverage-%p.profraw
         run: ctest --test-dir build --output-on-failure
 
       - name: Merge coverage profiles
