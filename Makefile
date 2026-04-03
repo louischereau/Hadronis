@@ -5,7 +5,7 @@ INSTALL_STAMP := $(VENV)/.install_stamp
 PROFILE_INSTALL_STAMP := $(VENV)/.install_stamp_profiled
 CPP_SOURCES := $(wildcard src/*.cpp)
 
-.PHONY: help dev release test test-cpp test-all lint format clean bench benchmark bench-cpp format-cpp lint-cpp perf perf-report perf-stat perf-threads
+.PHONY: help dev release test test-cpp test-all lint format clean bench benchmark bench-cpp format-cpp lint-cpp perf perf-report perf-stat perf-threads bench-memory
 
 help:
 	@echo "Hadronis Development:"
@@ -24,6 +24,7 @@ help:
 	@echo "  perf-report Open perf report for latest run"
 	@echo "  perf-stat   perf stat on single-molecule latency benchmark"
 	@echo "  perf-threads perf stat on thread-scaling benchmark"
+	@echo "  bench-memory Benchmark RSS growth under repeated inference"
 
 $(VENV):
 	$(UV) venv $(VENV)
@@ -103,3 +104,7 @@ bench-cpp:
 	cmake -S . -B build -DHADRONIS_ENABLE_SIMD=ON
 	cmake --build build
 	./build/src/hadronis_bench_geometry
+
+bench-memory: $(INSTALL_STAMP)
+	@echo "--- Benchmark: memory growth under repeated inference ---"
+	$(UV) run python benchmarks/python/benchmark_memory_growth.py --n-atoms 128 --n-iters 5

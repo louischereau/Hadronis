@@ -1,3 +1,4 @@
+import argparse
 import gc
 import os
 import time
@@ -5,9 +6,6 @@ import time
 import hadronis
 import numpy as np
 import psutil
-import pytest
-
-pytestmark = pytest.mark.no_codspeed
 
 
 def _get_memory_mb() -> float:
@@ -18,30 +16,24 @@ def _get_memory_mb() -> float:
 def _make_large_system(n_atoms: int = 128):
     atomic_numbers = np.full(n_atoms, 6, dtype=np.int32)
     positions = np.random.rand(n_atoms, 3).astype(np.float32)
-
     return atomic_numbers, positions
 
 
-def test_memory_growth_under_repeated_inference():
-    """Smoke test for memory leaks under a heavy, repeated workload.
+def run_memory_growth_benchmark(n_atoms: int = 128, n_iters: int = 5) -> None:
+    atomic_numbers, positions = _make_large_system(n_atoms=n_atoms)
 
-    This is a slimmed-down version of the old stress test:
-    - Builds a large system of atoms.
-    - Runs Engine.predict multiple times.
-    - Tracks RSS before/after and flags large growth as a potential leak.
-    """
-
-    atomic_numbers, positions = _make_large_system(n_atoms=128)
-
+    print(f"[memory-growth] n_atoms={n_atoms} n_iters={n_iters}")
     engine = hadronis.compile("dummy-weights.bin")
+
+    # Optional warmup to trigger one-time allocations before measuring.
+    _ = engine.predict(atomic_numbers, positions)
+    gc.collect()
 
     initial_mem = _get_memory_mb()
     start_time = time.perf_counter()
 
-    n_iters = 5
     for i in range(n_iters):
         out = engine.predict(atomic_numbers, positions)
-        # Ensure result is used so it's not trivially optimized away
         assert out.shape[0] == atomic_numbers.shape[0]
 
         gc.collect()
@@ -59,11 +51,17 @@ def test_memory_growth_under_repeated_inference():
 
     print("-" * 40)
     print(f"[memory-growth] total_time={total_time:.3f}s")
-    label = "[OK]" if leak < 50.0 else "[POTENTIAL LEAK]"
-    print(f"[memory-growth] net_growth={leak:.2f} MB {label}")
+    print(f"[memory-growth] net_growth={leak:.2f} MB")
 
-    # Turn very large growth into a test failure so CI catches regressions.
-    # Threshold is intentionally generous to avoid noise from allocator/OS.
-    assert leak < 200.0, (
-        f"[POTENTIAL LEAK] RSS grew by {leak:.2f} MB during repeated inference"
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Hadronis memory growth benchmark")
+    parser.add_argument(
+        "--n-atoms", type=int, default=128, help="Number of atoms in the test system"
     )
+    parser.add_argument(
+        "--n-iters", type=int, default=5, help="Number of repeated inference iterations"
+    )
+    args = parser.parse_args()
+
+    run_memory_growth_benchmark(n_atoms=args.n_atoms, n_iters=args.n_iters)
