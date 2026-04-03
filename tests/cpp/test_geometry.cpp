@@ -81,8 +81,10 @@ TEST(GraphBuilderTest, BuildsExpectedGraph) {
   GraphBuilder gb(N, box_size, r_cut, r_skin, num_rbf);
   gb.build(pos);
 
-  // Expect exactly two unique edges: (0,1) and (0,2), stored once each
-  ASSERT_EQ(gb.edge_graph.num_edges(), 2u);
+  // Expect four directed edges: (0,1), (1,0), (0,2) and (2,0).
+  // GraphBuilder treats the neighbour graph as directed, emitting an edge
+  // for each (i,j) within the cutoff when iterating over central atoms i.
+  ASSERT_EQ(gb.edge_graph.num_edges(), 4u);
 
   std::vector<std::pair<int, int>> edges;
   for (std::size_t k = 0; k < gb.edge_graph.edge_src.size(); ++k) {
@@ -90,11 +92,15 @@ TEST(GraphBuilderTest, BuildsExpectedGraph) {
   }
 
   std::sort(edges.begin(), edges.end());
-  ASSERT_EQ(edges.size(), 2u);
+  ASSERT_EQ(edges.size(), 4u);
   EXPECT_EQ(edges[0].first, 0);
   EXPECT_EQ(edges[0].second, 1);
   EXPECT_EQ(edges[1].first, 0);
   EXPECT_EQ(edges[1].second, 2);
+  EXPECT_EQ(edges[2].first, 1);
+  EXPECT_EQ(edges[2].second, 0);
+  EXPECT_EQ(edges[3].first, 2);
+  EXPECT_EQ(edges[3].second, 0);
 
   // RBF features should have num_rbf entries per edge
   EXPECT_EQ(gb.edge_graph.edge_rbf.size(),
