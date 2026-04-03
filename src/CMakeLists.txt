@@ -18,6 +18,7 @@ target_compile_options(_lowlevel
 )
 
 option(HADRONIS_ENABLE_SIMD "Enable SIMD optimizations (may reduce portability)" OFF)
+option(HADRONIS_PROFILE "Build with debug symbols and frame pointers for profiling" OFF)
 
 if(HADRONIS_ENABLE_SIMD AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	target_compile_options(_lowlevel PRIVATE -march=native)
@@ -44,3 +45,8 @@ target_compile_options(hadronis_bench_geometry
 		$<$<CXX_COMPILER_ID:MSVC>:/W4 /O2>
 		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -O2>
 )
+
+if(HADRONIS_PROFILE AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+	target_compile_options(_lowlevel PRIVATE -g -fno-omit-frame-pointer)
+	target_compile_options(hadronis_bench_geometry PRIVATE -g -fno-omit-frame-pointer)
+endif()

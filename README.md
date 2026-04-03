@@ -1,6 +1,6 @@
 # Hadronis
 
-[![PyPI version](https://img.shields.io/pypi/v/hadronis?cacheSeconds=3600)](https://pypi.org/project/hadronis/) [![Python versions](https://img.shields.io/pypi/pyversions/hadronis?cacheSeconds=3600)](https://pypi.org/project/hadronis/) [![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance%20Tracking-blue?logo=github&style=flat-square)](https://codspeed.io/louischereau/Hadronis?utm_source=badge)
+[![PyPI version](https://img.shields.io/pypi/v/hadronis?cacheSeconds=3600)](https://pypi.org/project/hadronis/) [![Python versions](https://img.shields.io/pypi/pyversions/hadronis?cacheSeconds=3600)](https://pypi.org/project/hadronis/) [![codecov](https://codecov.io/gh/louischereau/Hadronis/branch/main/graph/badge.svg)](https://codecov.io/gh/louischereau/Hadronis) [![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance%20Tracking-blue?logo=github&style=flat-square)](https://codspeed.io/louischereau/Hadronis?utm_source=badge)
 
 
 **A minimal, CPU-Optimized PaiNN Inference Pipeline for Molecular Graph Neural Networks**

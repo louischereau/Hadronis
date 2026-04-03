@@ -6,8 +6,8 @@ from typing import List, Sequence
 
 from benchmark_single_molecule_latency import (
     LatencyStats,
-    compute_latency_stats,
     _generate_random_system,
+    compute_latency_stats,
 )
 
 
@@ -75,19 +75,19 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--n-atoms",
         type=int,
-        default=256,
+        default=128,
         help="Number of atoms in the simulated system.",
     )
     parser.add_argument(
         "--n-steps",
         type=int,
-        default=10_000,
+        default=1_00,
         help="Number of MD-like steps to run.",
     )
     parser.add_argument(
         "--n-warmup",
         type=int,
-        default=100,
+        default=20,
         help="Number of warmup steps before timing.",
     )
     parser.add_argument(
