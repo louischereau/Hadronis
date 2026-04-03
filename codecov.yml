@@ -1,0 +1,16 @@
+comment:
+  layout: "diff, flags, files"
+  behavior: default
+  require_changes: false      # if true: only post when coverage changes
+  require_base: false         # must have a base report to post
+  require_head: true          # must have a head report to post
+  hide_project_coverage: false  # show overall (project) coverage in PR comment
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto     # compare against base commit
+        threshold: 0%    # do not allow any drop vs base
+        base: auto       # let Codecov pick the appropriate base
+        informational: true  # make this status non-blocking
