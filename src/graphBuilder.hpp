@@ -91,5 +91,9 @@ struct GraphBuilder {
     // Sort edges by destination to improve cache locality when aggregating
     // messages into destination atoms (e.g. PaiNN-style models).
     edge_graph.sort_by_dst();
+
+    // Build CSR row-pointer offsets so PaiNN message passing can look up
+    // the incoming-edge range for each destination atom in O(1).
+    edge_graph.build_dst_offsets(N_pos);
   }
 };

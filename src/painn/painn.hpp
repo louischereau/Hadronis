@@ -30,8 +30,6 @@ struct PaINN {
 
   float predict(const int *atomic_numbers, int n_atoms, const EdgeGraph &graph,
                 float r_cut) {
-    float energy = 0.0f;
-
     const std::size_t scalar_size = static_cast<std::size_t>(n_atoms) *
                                     static_cast<std::size_t>(hidden_dim);
     std::vector<float> s(scalar_size, 0.0f);
@@ -42,15 +40,16 @@ struct PaINN {
       interaction.forward(n_atoms, s, v, graph, r_cut);
     }
 
+    float total_energy = 0.0f;
     std::vector<float> hidden(static_cast<std::size_t>(hidden_dim)), out(1);
     for (int atom = 0; atom < n_atoms; ++atom) {
       std::span<const float> s_atom(s.data() + atom * hidden_dim, hidden_dim);
       linear1.forward(s_atom, hidden);
       silu_inplace(hidden);
       linear2.forward(hidden, out);
-      energy += out[0];
+      total_energy += out[0];
     }
 
-    return energy;
+    return total_energy;
   }
 };

@@ -34,12 +34,10 @@ public:
   float predict(
       py::array_t<int, py::array::c_style | py::array::forcecast>
           atomic_numbers,
-      py::array_t<float, py::array::c_style | py::array::forcecast> positions,
-      py::array_t<int, py::array::c_style | py::array::forcecast> batch) {
-    validate_inputs(atomic_numbers, positions, batch);
+      py::array_t<float, py::array::c_style | py::array::forcecast> positions) {
+    validate_inputs(atomic_numbers, positions);
 
     const int N = static_cast<int>(atomic_numbers.shape(0));
-    const float box_size = r_cut_ * 2.0f;
     const float r_skin = 0.5f * r_cut_;
 
     auto pos_view = positions.unchecked<2>();
@@ -47,6 +45,35 @@ public:
     for (int i = 0; i < N; ++i) {
       pos[static_cast<std::size_t>(i)] = {pos_view(i, 0), pos_view(i, 1),
                                           pos_view(i, 2)};
+    }
+
+    // Compute the bounding box of the system so that the minimum-image
+    // convention never wraps any real pair (effectively disabling PBC for
+    // isolated molecules).  We need box > 2 * max_extent so that the
+    // half-box is always larger than the largest inter-atom displacement.
+    float xmin = pos[0].x, xmax = pos[0].x;
+    float ymin = pos[0].y, ymax = pos[0].y;
+    float zmin = pos[0].z, zmax = pos[0].z;
+    for (const auto &p : pos) {
+      xmin = std::min(xmin, p.x);
+      xmax = std::max(xmax, p.x);
+      ymin = std::min(ymin, p.y);
+      ymax = std::max(ymax, p.y);
+      zmin = std::min(zmin, p.z);
+      zmax = std::max(zmax, p.z);
+    }
+    const float extent = std::max({xmax - xmin, ymax - ymin, zmax - zmin});
+    const float box_size = 2.0f * extent + 2.0f * r_cut_;
+
+    // Shift positions into [r_cut_, r_cut_ + extent] so they sit well inside
+    // the box and the cell-list clamping never clips real neighbours.
+    const float sx = r_cut_ - xmin;
+    const float sy = r_cut_ - ymin;
+    const float sz = r_cut_ - zmin;
+    for (auto &p : pos) {
+      p.x += sx;
+      p.y += sy;
+      p.z += sz;
     }
 
     graph_builder_ = GraphBuilder(N, box_size, r_cut_, r_skin, kNumRbf);
@@ -58,14 +85,11 @@ public:
 
 private:
   static void validate_inputs(const py::array_t<int> &atomic_numbers,
-                              const py::array_t<float> &positions,
-                              const py::array_t<int> &batch) {
+                              const py::array_t<float> &positions) {
     if (atomic_numbers.ndim() != 1)
       throw std::runtime_error("atomic_numbers must be 1D [n_atoms]");
     if (positions.ndim() != 2 || positions.shape(1) != 3)
       throw std::runtime_error("positions must have shape (n_atoms, 3)");
-    if (batch.ndim() != 1 || batch.shape(0) != atomic_numbers.shape(0))
-      throw std::runtime_error("batch must have shape (n_atoms,)");
   }
 
   // Load weights from a .safetensors file into the PaINN model.
@@ -142,5 +166,5 @@ PYBIND11_MODULE(_lowlevel, m) {
       .def(py::init<const std::string &, float, int>(), py::arg("weight_path"),
            py::arg("cutoff") = 5.0f, py::arg("max_neighbors") = 64)
       .def("predict", &HadronisEngine::predict, py::arg("atomic_numbers"),
-           py::arg("positions"), py::arg("batch"));
+           py::arg("positions"));
 }

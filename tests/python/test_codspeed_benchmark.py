@@ -44,7 +44,7 @@ def test_small_system(benchmark, n_atoms: int):
 
     def run():
         out = engine.predict(atomic_numbers, positions)
-        assert out.shape == (n_atoms,)
+        assert isinstance(out, float)
         return out
 
     benchmark(run)
@@ -62,7 +62,7 @@ def test_medium_system(benchmark, n_atoms: int):
 
     def run():
         out = engine.predict(atomic_numbers, positions)
-        assert out.shape == (n_atoms,)
+        assert isinstance(out, float)
         return out
 
     benchmark(run)

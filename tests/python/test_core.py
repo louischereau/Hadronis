@@ -1,6 +1,7 @@
 import hadronis
 import numpy as np
 import pytest
+from conftest import KNOWN_READOUT_BIAS
 
 pytestmark = pytest.mark.no_codspeed
 
@@ -32,9 +33,20 @@ def test_predict_output_shape_and_dtype(methane_system):
 
     out = engine.predict(atomic_numbers, positions)
 
-    assert out.shape == (atomic_numbers.shape[0],)
-    assert isinstance(out, np.ndarray)
-    assert out.dtype == np.float32
+    assert isinstance(out, float)
+
+
+def test_predict_known_output(methane_system, known_weights_file):
+    """With all-zero weights except readout.linear2.bias=KNOWN_READOUT_BIAS,
+    every atom contributes exactly KNOWN_READOUT_BIAS to the total energy,
+    so total = n_atoms * KNOWN_READOUT_BIAS."""
+    atomic_numbers, positions = methane_system
+    n_atoms = len(atomic_numbers)
+    engine = hadronis.compile(known_weights_file)
+
+    out = engine.predict(atomic_numbers, positions)
+
+    assert out == pytest.approx(n_atoms * KNOWN_READOUT_BIAS, rel=1e-5)
 
 
 def test_predict_rejects_wrong_atomic_number_shape():
