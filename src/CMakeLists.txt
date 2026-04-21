@@ -9,7 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(pybind11 CONFIG REQUIRED)
 
 # Use the helper that produces a correctly named Python extension module
-pybind11_add_module(_lowlevel hadronis.cpp)
+pybind11_add_module(_lowlevel hadronis.cpp utils/safetensors_impl.cpp)
 
 target_include_directories(_lowlevel PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}

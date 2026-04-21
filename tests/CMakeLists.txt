@@ -14,7 +14,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(hadronis_gtest
-    cpp/test_sanity.cpp
+    cpp/test_painn.cpp
     cpp/test_geometry.cpp
 )
 
