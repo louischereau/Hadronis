@@ -15,19 +15,19 @@ namespace py = pybind11;
 
 // Default PaiNN hyper-parameters (must match the saved weight file).
 static constexpr int kHiddenDim = 128;
+constexpr int kNumRbf = 20; // must match painn_(kHiddenDim, 3, kNumRbf)
 
 class HadronisEngine {
   GraphBuilder graph_builder_;
   PaINN painn_;
   float r_cut_;
   int max_neighbors_;
-  int n_threads_;
 
 public:
   HadronisEngine(const std::string &weight_path, float cutoff,
-                 int max_neighbors, int n_threads)
-      : painn_(kHiddenDim, 3, 20), r_cut_(cutoff),
-        max_neighbors_(max_neighbors), n_threads_(n_threads) {
+                 int max_neighbors)
+      : painn_(kHiddenDim, 3, kNumRbf), r_cut_(cutoff),
+        max_neighbors_(max_neighbors) {
     load_weights(weight_path, painn_);
   }
 
@@ -41,7 +41,6 @@ public:
     const int N = static_cast<int>(atomic_numbers.shape(0));
     const float box_size = r_cut_ * 2.0f;
     const float r_skin = 0.5f * r_cut_;
-    constexpr int kNumRbf = 20; // must match painn_(kHiddenDim, 3, kNumRbf)
 
     auto pos_view = positions.unchecked<2>();
     std::vector<Vec3> pos(static_cast<std::size_t>(N));
@@ -140,9 +139,8 @@ private:
 
 PYBIND11_MODULE(_lowlevel, m) {
   py::class_<HadronisEngine>(m, "HadronisEngine")
-      .def(py::init<const std::string &, float, int, int>(),
-           py::arg("weight_path"), py::arg("cutoff") = 5.0f,
-           py::arg("max_neighbors") = 64, py::arg("n_threads") = 1)
+      .def(py::init<const std::string &, float, int>(), py::arg("weight_path"),
+           py::arg("cutoff") = 5.0f, py::arg("max_neighbors") = 64)
       .def("predict", &HadronisEngine::predict, py::arg("atomic_numbers"),
            py::arg("positions"), py::arg("batch"));
 }
