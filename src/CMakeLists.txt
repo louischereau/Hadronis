@@ -11,6 +11,11 @@ find_package(pybind11 CONFIG REQUIRED)
 # Use the helper that produces a correctly named Python extension module
 pybind11_add_module(_lowlevel hadronis.cpp)
 
+target_include_directories(_lowlevel PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${safetensors_cpp_SOURCE_DIR}
+)
+
 target_compile_options(_lowlevel
 	PRIVATE
 		$<$<CXX_COMPILER_ID:MSVC>:/W4 /O2>
@@ -50,3 +55,6 @@ if(HADRONIS_PROFILE AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	target_compile_options(_lowlevel PRIVATE -g -fno-omit-frame-pointer)
 	target_compile_options(hadronis_bench_geometry PRIVATE -g -fno-omit-frame-pointer)
 endif()
+
+target_link_libraries(_lowlevel PRIVATE Threads::Threads)
+target_link_libraries(hadronis_bench_geometry PRIVATE Threads::Threads)

@@ -1,14 +1,47 @@
+#pragma once
 #include <algorithm>
 #include <numeric>
+#include <span>
 #include <vector>
 
 struct EdgeGraph {
   std::vector<int> edge_src;
   std::vector<int> edge_dst;
   std::vector<float> edge_rbf;
-  std::vector<float> edge_rvec; // [E, 3] per-edge unit vectors r_hat
+  std::vector<float> edge_rvec; // [E, 3] per-edge relative vectors r_ij
+  std::vector<std::size_t>
+      dst_offsets; // [n_atoms + 1] CSR row pointers into edge arrays
 
   std::size_t num_edges() const { return edge_src.size(); }
+
+  // Build CSR dst_offsets for n_atoms atoms. Must be called after
+  // sort_by_dst(). dst_offsets[i]..dst_offsets[i+1] is the half-open range of
+  // incoming edges for atom i.
+  void build_dst_offsets(int n_atoms) {
+    dst_offsets.assign(static_cast<std::size_t>(n_atoms) + 1, 0);
+    for (int dst : edge_dst)
+      ++dst_offsets[static_cast<std::size_t>(dst) + 1];
+    for (int i = 0; i < n_atoms; ++i)
+      dst_offsets[static_cast<std::size_t>(i) + 1] +=
+          dst_offsets[static_cast<std::size_t>(i)];
+  }
+
+  // Returns a span over the rvec blocks [begin*3 .. end*3) for atom i's
+  // incoming edges.
+  std::span<const float> incoming_rvec(int atom) const {
+    const std::size_t begin = dst_offsets[static_cast<std::size_t>(atom)];
+    const std::size_t end = dst_offsets[static_cast<std::size_t>(atom) + 1];
+    return {edge_rvec.data() + begin * 3, (end - begin) * 3};
+  }
+
+  // Returns a span over the RBF blocks [begin*K .. end*K) for atom i's incoming
+  // edges.
+  std::span<const float> incoming_rbf(int atom, int n_rbf) const {
+    const std::size_t begin = dst_offsets[static_cast<std::size_t>(atom)];
+    const std::size_t end = dst_offsets[static_cast<std::size_t>(atom) + 1];
+    return {edge_rbf.data() + begin * static_cast<std::size_t>(n_rbf),
+            (end - begin) * static_cast<std::size_t>(n_rbf)};
+  }
 
   // Sort edges by destination index to improve cache locality when
   // aggregating messages into destination atoms. All edge-aligned arrays

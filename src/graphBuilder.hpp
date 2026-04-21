@@ -79,10 +79,9 @@ struct GraphBuilder {
                 const float dist = std::sqrt(d2);
                 edge_graph.edge_src.push_back(i);
                 edge_graph.edge_dst.push_back(j);
-                const float inv_dist = 1.0f / dist;
-                edge_graph.edge_rvec.push_back(d.x * inv_dist);
-                edge_graph.edge_rvec.push_back(d.y * inv_dist);
-                edge_graph.edge_rvec.push_back(d.z * inv_dist);
+                edge_graph.edge_rvec.push_back(d.x);
+                edge_graph.edge_rvec.push_back(d.y);
+                edge_graph.edge_rvec.push_back(d.z);
                 rbf.expand_append(dist, edge_graph.edge_rbf);
               }
             }

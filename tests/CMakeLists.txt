@@ -28,6 +28,7 @@ target_include_directories(hadronis_gtest
 target_link_libraries(hadronis_gtest
     PRIVATE
         GTest::gtest_main
+        Threads::Threads
 )
 
 # When built with Clang, enable coverage instrumentation on the C++ test

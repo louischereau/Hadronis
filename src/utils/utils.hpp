@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../models/vec3.hpp"
+#include "activations.hpp"
 #include <algorithm>
-#include <cmath>
 #include <numbers>
 
 inline void wrap_minimum_image(Vec3 &d, float box) {
