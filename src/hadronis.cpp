@@ -22,6 +22,11 @@ class HadronisEngine {
   PaINN painn_;
   float r_cut_;
   int max_neighbors_;
+  // Cached construction parameters: GraphBuilder is expensive to rebuild
+  // (allocates ~420 KB of edge vectors). When N and box_size are stable
+  // across calls (the common case), reuse the existing object.
+  int cached_N_ = 0;
+  float cached_box_size_ = -1.0f;
 
 public:
   HadronisEngine(const std::string &weight_path, float cutoff,
@@ -38,7 +43,6 @@ public:
     validate_inputs(atomic_numbers, positions);
 
     const int N = static_cast<int>(atomic_numbers.shape(0));
-    const float r_skin = 0.5f * r_cut_;
 
     auto pos_view = positions.unchecked<2>();
     std::vector<Vec3> pos(static_cast<std::size_t>(N));
@@ -63,7 +67,10 @@ public:
       zmax = std::max(zmax, p.z);
     }
     const float extent = std::max({xmax - xmin, ymax - ymin, zmax - zmin});
-    const float box_size = 2.0f * extent + 2.0f * r_cut_;
+    // Minimum safe box: half-box must exceed the largest atom-pair displacement
+    // (= extent) so PBC never wraps real neighbours.  Add a small margin and
+    // ensure the box is wide enough for at least one cell-list cell.
+    const float box_size = std::max(2.0f * extent + 0.01f, r_cut_ + 0.01f);
 
     // Shift positions into [r_cut_, r_cut_ + extent] so they sit well inside
     // the box and the cell-list clamping never clips real neighbours.
@@ -76,7 +83,14 @@ public:
       p.z += sz;
     }
 
-    graph_builder_ = GraphBuilder(N, box_size, r_cut_, r_skin, kNumRbf);
+    if (N != cached_N_ || box_size != cached_box_size_) {
+      // r_skin=0: we always rebuild the graph from scratch so a neighbour-list
+      // skin provides no benefit; using r_list=r_cut yields smaller cells and
+      // fewer redundant pair checks.
+      graph_builder_ = GraphBuilder(N, box_size, r_cut_, 0.0f, kNumRbf);
+      cached_N_ = N;
+      cached_box_size_ = box_size;
+    }
     graph_builder_.build(pos);
 
     return painn_.predict(&atomic_numbers.unchecked<1>()(0), N,

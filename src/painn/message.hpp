@@ -38,6 +38,10 @@ struct PaiNNMessage {
 private:
   PaiNNMessageScratch main_scratch_;
   std::unique_ptr<PersistentThreadPool<PaiNNMessageScratch>> thread_pool_;
+  // Per-atom phi scratch: mlp_linear2(silu(mlp_linear1(s))), reused across
+  // calls. Avoids re-allocating these buffers every forward() invocation.
+  std::vector<float> phi_tmp_; // [n_atoms * F]
+  std::vector<float> phi_all_; // [n_atoms * 3F]
 
   std::size_t validate_inputs(int n_atoms, const std::vector<float> &s,
                               const std::vector<float> &v,
@@ -76,6 +80,17 @@ public:
 
     const float r_cut2 = r_cut * r_cut;
 
+    // Precompute phi = mlp_linear2(silu(mlp_linear1(s))) for every source
+    // atom. phi depends only on s[src], not on any edge endpoint, so computing
+    // it inside the edge loop redundantly repeats it degree(src) times (~33x
+    // for typical systems). Batch over all atoms first, then look up per edge.
+    mlp_linear1.forward(std::span<const float>(s.data(), scalar_size), n_atoms,
+                        phi_tmp_);
+    silu_inplace(phi_tmp_);
+    mlp_linear2.forward(
+        std::span<const float>(phi_tmp_.data(), phi_tmp_.size()), n_atoms,
+        phi_all_);
+
     auto process_atom = [&](int dst, PaiNNMessageScratch &scratch) {
       const std::size_t dst_s_base = static_cast<std::size_t>(dst) * F;
       const std::size_t dst_v_base = 3u * dst_s_base;
@@ -104,14 +119,12 @@ public:
         const float r_hat_y = ry * inv_r;
         const float r_hat_z = rz * inv_r;
 
-        const std::size_t src_s_base = static_cast<std::size_t>(src) * F;
-        const std::size_t src_v_base = 3u * src_s_base;
+        const std::size_t src_v_base = 3u * static_cast<std::size_t>(src) * F;
 
-        mlp_linear1.forward(std::span<const float>(s.data() + src_s_base, F),
-                            scratch.phi);
-        silu_inplace(scratch.phi);
-        mlp_linear2.forward(std::span<const float>(scratch.phi.data(), F),
-                            scratch.mix);
+        // Load precomputed phi[src] into scratch.mix.
+        const std::size_t phi_src_base = static_cast<std::size_t>(src) * 3u * F;
+        std::copy(phi_all_.data() + phi_src_base,
+                  phi_all_.data() + phi_src_base + 3u * F, scratch.mix.begin());
 
         const std::span<const float> rbf_e(
             graph.edge_rbf.data() + e * static_cast<std::size_t>(n_rbf),
