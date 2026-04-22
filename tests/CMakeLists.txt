@@ -14,8 +14,15 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(hadronis_gtest
-    cpp/test_sanity.cpp
-    cpp/test_geometry.cpp
+    cpp/test_painn.cpp
+    cpp/test_linear_layer.cpp
+    cpp/test_silu.cpp
+    cpp/test_update.cpp
+    cpp/test_message.cpp
+    cpp/test_edgegraph.cpp
+    cpp/test_rbf.cpp
+    cpp/test_cell_list.cpp
+    cpp/test_graph_builder.cpp
 )
 
 target_compile_features(hadronis_gtest PRIVATE cxx_std_23)
@@ -28,6 +35,7 @@ target_include_directories(hadronis_gtest
 target_link_libraries(hadronis_gtest
     PRIVATE
         GTest::gtest_main
+        Threads::Threads
 )
 
 # When built with Clang, enable coverage instrumentation on the C++ test

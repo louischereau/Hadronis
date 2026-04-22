@@ -2,13 +2,22 @@ import argparse
 import platform
 import sys
 import time
+from pathlib import Path
 from typing import List, Sequence
 
+sys.path.insert(
+    0, str(Path(__file__).resolve().parent.parent.parent / "tests" / "python")
+)
 from benchmark_single_molecule_latency import (
     LatencyStats,
     _generate_random_system,
     compute_latency_stats,
 )
+from conftest import KNOWN_READOUT_BIAS, _write_known_safetensors
+
+# Generate a known weights file for benchmarking
+KNOWN_WEIGHTS_PATH = Path(__file__).parent / "known-weights.bin"
+_write_known_safetensors(KNOWN_WEIGHTS_PATH, KNOWN_READOUT_BIAS)
 
 
 def simple_integrator_step(r):
@@ -93,7 +102,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--painn-weights",
         type=str,
-        default="painn.bin",
+        default=str(KNOWN_WEIGHTS_PATH),
         help="Path to the PaiNN weight file for Hadronis.",
     )
     parser.add_argument(
@@ -111,7 +120,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--n-threads",
         type=int,
-        default=16,
+        default=1,
         help="Number of CPU threads for Hadronis.",
     )
 

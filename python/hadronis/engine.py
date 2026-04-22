@@ -14,7 +14,7 @@ class Engine:
         weight_path: str,
         cutoff: float = 5.0,
         max_neighbors: int = 64,
-        n_threads: int = 16,
+        n_threads: int = 1,
     ) -> None:
         self.cutoff = float(cutoff)
         self.max_neighbors = int(max_neighbors)
@@ -27,7 +27,7 @@ class Engine:
         self,
         atomic_numbers: NDArray[np.int32],
         positions: NDArray[np.float32],
-    ) -> np.ndarray:
+    ) -> float:
         """Run inference for a single molecular system.
 
         Parameters
@@ -46,10 +46,7 @@ class Engine:
         if r.shape != (z.shape[0], 3):
             raise ValueError("positions must have shape (n_atoms, 3)")
 
-        # Internal: all atoms belong to a single molecule (index 0).
-        batch = np.zeros(z.shape[0], dtype=np.int32)
-
-        return self._engine.predict(z, r, batch)
+        return self._engine.predict(z, r)
 
 
 def compile(

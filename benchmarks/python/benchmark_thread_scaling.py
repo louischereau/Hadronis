@@ -1,6 +1,7 @@
 import argparse
 import sys
 import time
+from pathlib import Path
 from typing import List, Sequence
 
 from benchmark_single_molecule_latency import (
@@ -8,6 +9,11 @@ from benchmark_single_molecule_latency import (
     _generate_random_system,
     compute_latency_stats,
 )
+from conftest import KNOWN_READOUT_BIAS, _write_known_safetensors
+
+# Generate a known weights file for benchmarking
+KNOWN_WEIGHTS_PATH = Path(__file__).parent / "known-weights.bin"
+_write_known_safetensors(KNOWN_WEIGHTS_PATH, KNOWN_READOUT_BIAS)
 
 
 def benchmark_thread_scaling(
@@ -92,7 +98,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     parser.add_argument(
         "--painn-weights",
         type=str,
-        default="painn.bin",
+        default=str(KNOWN_WEIGHTS_PATH),
         help="Path to the PaiNN weight file for Hadronis.",
     )
     parser.add_argument(

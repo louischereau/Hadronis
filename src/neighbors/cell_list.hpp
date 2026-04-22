@@ -1,8 +1,8 @@
-#include "vec3.hpp"
+#pragma once
+#include "../models/vec3.hpp"
 #include <algorithm>
 #include <array>
 #include <vector>
-#pragma once
 
 struct CellList {
   int nx, ny, nz;  // grid dimensions - number of cells along each axis
@@ -15,7 +15,6 @@ struct CellList {
   CellList() = default;
 
   CellList(int N, float box_size, float r_cut) : box(box_size) {
-    // At least 1 cell per dimension, each cell >= r_cut
     nx = std::max(1, static_cast<int>(box / r_cut));
     ny = nx;
     nz = nx;
@@ -25,12 +24,10 @@ struct CellList {
     next.resize(N, -1);
   }
 
-  // Flatten 3-D cell index → 1-D
   int cell_index(int cx, int cy, int cz) const {
     return cx + nx * (cy + ny * cz);
   }
 
-  // Neighbour cell index with periodic wrapping of cell coordinates
   int neighbour_cell_index(int cx, int cy, int cz, int dx, int dy,
                            int dz) const {
     const int ncx = (cx + dx + nx) % nx;
@@ -39,7 +36,6 @@ struct CellList {
     return cell_index(ncx, ncy, ncz);
   }
 
-  // Particle position → 3D cell coordinates (clamped to valid range)
   std::array<int, 3> cell_coords(const Vec3 &p) const {
     int cx = static_cast<int>(p.x / cell_size);
     int cy = static_cast<int>(p.y / cell_size);
@@ -52,29 +48,21 @@ struct CellList {
     return {cx, cy, cz};
   }
 
-  // Particle position → cell index (with PBC clamp)
   int cell_of(const Vec3 &p) const {
     auto [cx, cy, cz] = cell_coords(p);
     return cell_index(cx, cy, cz);
   }
 
-  // Build linked lists from current positions — O(N)
   void build(const std::vector<Vec3> &pos) {
-    // Ensure the "next" array is large enough for the current number of
-    // particles. The constructor originally sized this from an "N" parameter,
-    // but build() should remain correct even if pos.size() changes.
     if (next.size() < pos.size()) {
       next.resize(pos.size(), -1);
     }
 
-    std::fill(head.begin(), head.end(), -1); // reset all cells to empty
-    for (int i = static_cast<int>(pos.size()) - 1; i >= 0;
-         --i) // iterate over each particle
-    {
+    std::fill(head.begin(), head.end(), -1);
+    for (int i = static_cast<int>(pos.size()) - 1; i >= 0; --i) {
       int c = cell_of(pos[i]);
-      next[i] =
-          head[c]; // link the new particle in front of the previous first one
-      head[c] = i; // i is now the new first particle in cell c
+      next[i] = head[c];
+      head[c] = i;
     }
   }
 };

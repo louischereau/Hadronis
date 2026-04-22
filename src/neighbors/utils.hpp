@@ -2,7 +2,6 @@
 
 #include "../models/vec3.hpp"
 #include <algorithm>
-#include <cmath>
 #include <numbers>
 
 inline void wrap_minimum_image(Vec3 &d, float box) {
@@ -27,6 +26,7 @@ inline void wrap_minimum_image(Vec3 &d, float box) {
 // Heuristic estimate of the maximum expected neighbours per particle in a
 // homogeneous system, used to reserve edge list capacity. Returns a value
 // clamped to a reasonable range to avoid pathological sizes.
+
 inline int estimate_max_neighbours(int N, float box, float r_cut) {
   if (N <= 0 || box <= 0.0f || r_cut <= 0.0f)
     return 64;
