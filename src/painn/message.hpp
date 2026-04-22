@@ -23,8 +23,6 @@ struct PaiNNMessage {
   LinearLayer mlp_linear2; // [F -> 3F]
   LinearLayer mlp_linear3; // [K -> 3F] learned RBF filter
 
-  PaiNNMessage() : PaiNNMessage(128, 20) {}
-
   PaiNNMessage(int hidden_dim, int n_rbf)
       : hidden_dim(hidden_dim), n_rbf(n_rbf),
         mlp_linear1(hidden_dim, hidden_dim),

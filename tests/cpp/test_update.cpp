@@ -2,6 +2,35 @@
 #include <gtest/gtest.h>
 #include <vector>
 
+TEST(PaiNNUpdateTest, ThrowsOnNegativeAtomCount) {
+  PaiNNUpdate update(4);
+  std::vector<float> s(4, 0.0f);
+  std::vector<float> v(12, 0.0f);
+  std::vector<float> ds, dv;
+  EXPECT_THROW(update.forward(-1, s, v, ds, dv), std::runtime_error);
+}
+
+TEST(PaiNNUpdateTest, ThrowsOnScalarShapeMismatch) {
+  PaiNNUpdate update(4);
+  // n_atoms = 2, hidden_dim = 4, so s.size() should be 8
+  std::vector<float> s(7, 0.0f);  // wrong size
+  std::vector<float> v(24, 0.0f); // correct size for 2 atoms
+  std::vector<float> ds, dv;
+  EXPECT_THROW(update.forward(2, s, v, ds, dv), std::runtime_error);
+}
+
+TEST(PaiNNUpdateTest, ThrowsOnVectorShapeMismatch) {
+  PaiNNUpdate update(4);
+  // n_atoms = 2, hidden_dim = 4, so v.size() should be 24
+  std::vector<float> s(8, 0.0f);  // correct size
+  std::vector<float> v(23, 0.0f); // wrong size
+  std::vector<float> ds, dv;
+  EXPECT_THROW(update.forward(2, s, v, ds, dv), std::runtime_error);
+}
+#include "painn/update.hpp"
+#include <gtest/gtest.h>
+#include <vector>
+
 TEST(PaiNNUpdateTest, LayerDimensionsMatchArchitecture) {
   PaiNNUpdate update(128);
 

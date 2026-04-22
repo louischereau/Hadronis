@@ -108,8 +108,6 @@ struct LinearLayer {
   std::vector<float> weight; // [out_dim * in_dim]
   std::vector<float> bias;   // [out_dim]
 
-  LinearLayer() : in_dim(0), out_dim(0) {}
-
   LinearLayer(int in_dim, int out_dim)
       : in_dim(in_dim), out_dim(out_dim),
         weight(static_cast<std::size_t>(in_dim) *

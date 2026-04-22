@@ -3,6 +3,81 @@
 #include <gtest/gtest.h>
 #include <vector>
 
+TEST(PaiNNMessageTest, FCutReturnsZeroAtOrAboveCutoff) {
+  PaiNNMessage message(4, 2);
+  // r = r_cut
+  float r_cut = 2.0f;
+  float r = 2.0f;
+  EXPECT_FLOAT_EQ(message.f_cut(r, r_cut), 0.0f);
+  // r > r_cut
+  r = 2.5f;
+  EXPECT_FLOAT_EQ(message.f_cut(r, r_cut), 0.0f);
+}
+
+// Runtime error tests for PaiNNMessage
+TEST(PaiNNMessageTest, ThrowsOnNegativeAtomCount) {
+  PaiNNMessage message(4, 2);
+  std::vector<float> s(4, 0.0f);
+  std::vector<float> v(12, 0.0f);
+  EdgeGraph graph;
+  graph.edge_src = {0};
+  graph.edge_dst = {0};
+  graph.edge_rvec = {1.0f, 0.0f, 0.0f};
+  graph.edge_rbf = {1.0f, 0.5f};
+  graph.build_dst_offsets(1);
+  std::vector<float> ds, dv;
+  EXPECT_THROW(message.forward(-1, s, v, graph, 1.0f, ds, dv),
+               std::runtime_error);
+}
+
+TEST(PaiNNMessageTest, ThrowsOnNonPositiveCutoff) {
+  PaiNNMessage message(4, 2);
+  std::vector<float> s(4, 0.0f);
+  std::vector<float> v(12, 0.0f);
+  EdgeGraph graph;
+  graph.edge_src = {0};
+  graph.edge_dst = {0};
+  graph.edge_rvec = {1.0f, 0.0f, 0.0f};
+  graph.edge_rbf = {1.0f, 0.5f};
+  graph.build_dst_offsets(1);
+  std::vector<float> ds, dv;
+  EXPECT_THROW(message.forward(1, s, v, graph, 0.0f, ds, dv),
+               std::runtime_error);
+  EXPECT_THROW(message.forward(1, s, v, graph, -2.0f, ds, dv),
+               std::runtime_error);
+}
+
+TEST(PaiNNMessageTest, ThrowsOnScalarShapeMismatch) {
+  PaiNNMessage message(4, 2);
+  // n_atoms = 2, hidden_dim = 4, so s.size() should be 8
+  std::vector<float> s(7, 0.0f);  // wrong size
+  std::vector<float> v(24, 0.0f); // correct size for 2 atoms
+  EdgeGraph graph;
+  graph.edge_src = {0, 1};
+  graph.edge_dst = {0, 1};
+  graph.edge_rvec = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+  graph.edge_rbf = {1.0f, 0.5f, 0.25f, 0.125f};
+  graph.build_dst_offsets(2);
+  std::vector<float> ds, dv;
+  EXPECT_THROW(message.forward(2, s, v, graph, 1.0f, ds, dv),
+               std::runtime_error);
+}
+
+TEST(PaiNNMessageTest, ThrowsOnVectorShapeMismatch) {
+  PaiNNMessage message(4, 2);
+  // n_atoms = 2, hidden_dim = 4, so v.size() should be 24
+  std::vector<float> s(8, 0.0f);  // correct size
+  std::vector<float> v(23, 0.0f); // wrong size
+  EdgeGraph graph;
+  graph.edge_src = {0, 1};
+  graph.edge_dst = {0, 1};
+  graph.edge_rvec = {1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+  graph.edge_rbf = {1.0f, 0.5f, 0.25f, 0.125f};
+  graph.build_dst_offsets(2);
+  std::vector<float> ds, dv;
+  EXPECT_THROW(message.forward(2, s, v, graph, 1.0f, ds, dv),
+               std::runtime_error);
+}
 TEST(PaiNNMessageTest, ForwardOutputShapesMatchHiddenDim) {
   EdgeGraph graph;
   graph.edge_src = {0};
