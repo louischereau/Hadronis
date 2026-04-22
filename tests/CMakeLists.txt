@@ -15,7 +15,14 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(hadronis_gtest
     cpp/test_painn.cpp
-    cpp/test_geometry.cpp
+    cpp/test_linear_layer.cpp
+    cpp/test_silu.cpp
+    cpp/test_update.cpp
+    cpp/test_message.cpp
+    cpp/test_edgegraph.cpp
+    cpp/test_rbf.cpp
+    cpp/test_cell_list.cpp
+    cpp/test_graph_builder.cpp
 )
 
 target_compile_features(hadronis_gtest PRIVATE cxx_std_23)
