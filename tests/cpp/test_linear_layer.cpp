@@ -3,6 +3,28 @@
 #include <span>
 #include <vector>
 
+TEST(LinearLayerTest, EarlyReturnOnZeroDims) {
+  // in_dim == 0, out_dim > 0
+  LinearLayer layer_zero_in(0, 3);
+  std::vector<float> out;
+  // Should not throw, should produce output of size 3 (bias only)
+  layer_zero_in.forward(std::span<const float>{}, out);
+  EXPECT_EQ(out.size(), 3u);
+
+  // in_dim > 0, out_dim == 0
+  LinearLayer layer_zero_out(3, 0);
+  std::vector<float> out2;
+  // Should not throw, should produce empty output
+  layer_zero_out.forward(std::vector<float>{1.0f, 2.0f, 3.0f}, out2);
+  EXPECT_TRUE(out2.empty());
+
+  // in_dim == 0, out_dim == 0
+  LinearLayer layer_zero_both(0, 0);
+  std::vector<float> out3;
+  layer_zero_both.forward(std::span<const float>{}, out3);
+  EXPECT_TRUE(out3.empty());
+}
+
 TEST(LinearLayerTest, ConcatForwardMatchesFlatInput) {
   LinearLayer layer(4, 2);
   layer.set_weight({1.0f, 2.0f, 3.0f, 4.0f, -1.0f, 0.5f, 2.0f, -0.5f});
