@@ -47,8 +47,7 @@ public:
         V(hidden_dim, hidden_dim), linear1(2 * hidden_dim, hidden_dim),
         linear2(hidden_dim, 3 * hidden_dim), main_scratch_(hidden_dim),
         thread_pool_(std::make_unique<PersistentThreadPool<PaiNNUpdateScratch>>(
-            std::max(1u, std::thread::hardware_concurrency()),
-            [hidden_dim]() { return PaiNNUpdateScratch(hidden_dim); })) {}
+            1u, [hidden_dim]() { return PaiNNUpdateScratch(hidden_dim); })) {}
 
   void forward(int n_atoms, const std::vector<float> &s,
                const std::vector<float> &v, std::vector<float> &ds_atom,

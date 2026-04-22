@@ -6,12 +6,7 @@ from pathlib import Path
 
 import pytest
 
-# The tests reference "dummy-weights.bin" as a relative path, which resolves
-# against the CWD at pytest invocation time (normally the repo root).
-# We write it next to the repo root CMakeLists.txt so the path is stable
-# regardless of where pytest is invoked from.
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-_DUMMY_WEIGHTS = _REPO_ROOT / "dummy-weights.bin"
 
 # PaINN hyper-parameters (must match kHiddenDim / kNumRbf in hadronis.cpp)
 _H = 128
@@ -45,47 +40,6 @@ def _build_weight_shapes() -> dict[str, list[int]]:
     shapes["readout.linear2.weight"] = [1, _H]
     shapes["readout.linear2.bias"] = [1]
     return shapes
-
-
-def _write_dummy_safetensors(path: Path) -> None:
-    """Write a minimal valid safetensors file with zero-valued F32 tensors."""
-    shapes = _build_weight_shapes()
-
-    header: dict = {}
-    offset = 0
-    data_parts: list[bytes] = []
-
-    for name, shape in shapes.items():
-        n_elems = 1
-        for d in shape:
-            n_elems *= d
-        n_bytes = n_elems * 4  # float32 = 4 bytes per element
-        header[name] = {
-            "dtype": "F32",
-            "shape": shape,
-            "data_offsets": [offset, offset + n_bytes],
-        }
-        data_parts.append(b"\x00" * n_bytes)
-        offset += n_bytes
-
-    # Pad header to a multiple of 8 bytes (required by safetensors spec)
-    header_bytes = json.dumps(header, separators=(",", ":")).encode("utf-8")
-    padded_len = (len(header_bytes) + 7) & ~7
-    header_bytes = header_bytes.ljust(padded_len)
-
-    with open(path, "wb") as f:
-        f.write(struct.pack("<Q", padded_len))
-        f.write(header_bytes)
-        for part in data_parts:
-            f.write(part)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def dummy_weights_file():
-    """Create a minimal safetensors weight file once per test session."""
-    _write_dummy_safetensors(_DUMMY_WEIGHTS)
-    yield
-    _DUMMY_WEIGHTS.unlink(missing_ok=True)
 
 
 # Known-weights file: all weights/biases are zero except readout.linear2.bias
@@ -137,9 +91,13 @@ def _write_known_safetensors(path: Path, readout_linear2_bias: float) -> None:
             f.write(part)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="session", autouse=True)
 def known_weights_file():
-    """Safetensors file with analytically known output: E = n_atoms * KNOWN_READOUT_BIAS."""
+    """Safetensors file with analytically known output: E = n_atoms * KNOWN_READOUT_BIAS.
+
+    autouse=True so the file is always present; tests that need the path can
+    request this fixture explicitly to receive it as a string.
+    """
     _write_known_safetensors(_KNOWN_WEIGHTS, KNOWN_READOUT_BIAS)
     yield str(_KNOWN_WEIGHTS)
     _KNOWN_WEIGHTS.unlink(missing_ok=True)

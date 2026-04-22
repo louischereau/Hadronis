@@ -32,7 +32,7 @@ struct PaiNNMessage {
         mlp_linear3(n_rbf, 3 * hidden_dim), main_scratch_(hidden_dim),
         thread_pool_(
             std::make_unique<PersistentThreadPool<PaiNNMessageScratch>>(
-                std::max(1u, std::thread::hardware_concurrency()),
+                1u,
                 [hidden_dim]() { return PaiNNMessageScratch(hidden_dim); })) {}
 
 private:

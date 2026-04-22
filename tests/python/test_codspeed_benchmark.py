@@ -33,13 +33,13 @@ def _make_random_system(n_atoms: int, seed: int = 0):
 
 
 @pytest.mark.parametrize("n_atoms", [128])
-def test_small_system(benchmark, n_atoms: int):
+def test_small_system(benchmark, n_atoms: int, known_weights_file):
     """Benchmark a single small-system inference call.
 
     Captures low-latency behavior for a modest-size molecule.
     """
 
-    engine = hadronis.compile("dummy-weights.bin")
+    engine = hadronis.compile(known_weights_file)
     atomic_numbers, positions = _make_random_system(n_atoms, seed=42)
 
     def run():
@@ -51,13 +51,13 @@ def test_small_system(benchmark, n_atoms: int):
 
 
 @pytest.mark.parametrize("n_atoms", [256])
-def test_medium_system(benchmark, n_atoms: int):
+def test_medium_system(benchmark, n_atoms: int, known_weights_file):
     """Benchmark many medium-sized calls to capture throughput.
 
     This approximates repeatedly evaluating a medium-sized system.
     """
 
-    engine = hadronis.compile("dummy-weights.bin")
+    engine = hadronis.compile(known_weights_file)
     atomic_numbers, positions = _make_random_system(n_atoms, seed=1)
 
     def run():

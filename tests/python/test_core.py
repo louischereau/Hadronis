@@ -22,14 +22,14 @@ def methane_system():
     return atomic_numbers, positions
 
 
-def test_compile_returns_engine():
-    engine = hadronis.compile("dummy-weights.bin")
+def test_compile_returns_engine(known_weights_file):
+    engine = hadronis.compile(known_weights_file)
     assert isinstance(engine, hadronis.Engine)
 
 
-def test_predict_output_shape_and_dtype(methane_system):
+def test_predict_output_shape_and_dtype(methane_system, known_weights_file):
     atomic_numbers, positions = methane_system
-    engine = hadronis.compile("dummy-weights.bin")
+    engine = hadronis.compile(known_weights_file)
 
     out = engine.predict(atomic_numbers, positions)
 
@@ -49,8 +49,8 @@ def test_predict_known_output(methane_system, known_weights_file):
     assert out == pytest.approx(n_atoms * KNOWN_READOUT_BIAS, rel=1e-5)
 
 
-def test_predict_rejects_wrong_atomic_number_shape():
-    engine = hadronis.compile("dummy-weights.bin")
+def test_predict_rejects_wrong_atomic_number_shape(known_weights_file):
+    engine = hadronis.compile(known_weights_file)
 
     atomic_numbers = np.array([[1, 1]], dtype=np.int32)  # 2D instead of 1D
     positions = np.zeros((2, 3), dtype=np.float32)
@@ -59,8 +59,8 @@ def test_predict_rejects_wrong_atomic_number_shape():
         engine.predict(atomic_numbers, positions)
 
 
-def test_predict_rejects_mismatched_positions_shape():
-    engine = hadronis.compile("dummy-weights.bin")
+def test_predict_rejects_mismatched_positions_shape(known_weights_file):
+    engine = hadronis.compile(known_weights_file)
 
     atomic_numbers = np.array([1, 1], dtype=np.int32)
     # Wrong last dimension (2 instead of 3)
