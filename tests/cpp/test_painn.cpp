@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "painn/layout.hpp"
+#include "painn/utils.hpp"
 
 TEST(PaiNNLayoutTest, VectorFeatureIndexIsComponentMajor) {
   EXPECT_EQ(vector_feature_index(0, 0, 4), 0u);

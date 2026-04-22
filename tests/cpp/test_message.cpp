@@ -1,4 +1,4 @@
-#include "models/edgeGraph.hpp"
+#include "neighbors/edge_graph.hpp"
 #include "painn/message.hpp"
 #include <gtest/gtest.h>
 #include <vector>

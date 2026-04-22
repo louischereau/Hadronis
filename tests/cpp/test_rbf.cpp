@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "models/rbf.hpp"
+#include "../../src/neighbors/rbf.hpp"
 #include <vector>
 
 // Basic checks for RadialBasis construction and expansion

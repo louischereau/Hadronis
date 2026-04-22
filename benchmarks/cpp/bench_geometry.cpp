@@ -3,9 +3,9 @@
 #include <random>
 #include <vector>
 
-#include "graphBuilder.hpp"
-#include "models/cellList.hpp"
-#include "models/rbf.hpp"
+#include "../../src/neighbors/cell_list.hpp"
+#include "../../src/neighbors/graph_builder.hpp"
+#include "../../src/neighbors/rbf.hpp"
 #include "models/vec3.hpp"
 
 using Clock = std::chrono::high_resolution_clock;

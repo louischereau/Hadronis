@@ -2,9 +2,9 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 
-#include "graphBuilder.hpp"
+#include "neighbors/graph_builder.hpp"
 #include "painn/painn.hpp"
-#include "utils/safetensors.hpp"
+#include "safetensors/safetensors.hpp"
 
 #include <span>
 #include <stdexcept>

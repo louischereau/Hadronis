@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../utils/activations.hpp"
-#include "models/edgeGraph.hpp"
+#include "../neighbors/edge_graph.hpp"
 #include "models/vec3.hpp"
-#include "painn/layout.hpp"
 #include "painn/linear_layer.hpp"
 #include "painn/thread_pool.hpp"
+#include "silu.hpp"
+#include "utils.hpp"
 #include <algorithm>
 #include <cmath>
 #include <memory>

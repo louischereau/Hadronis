@@ -1,4 +1,4 @@
-#include "utils/activations.hpp"
+#include "painn/silu.hpp"
 #include <cmath>
 #include <gtest/gtest.h>
 #include <vector>

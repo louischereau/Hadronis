@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../utils/activations.hpp"
-#include "layout.hpp"
 #include "linear_layer.hpp"
+#include "silu.hpp"
 #include "thread_pool.hpp"
+#include "utils.hpp"
 #include <algorithm>
 #include <cmath>
 #include <memory>

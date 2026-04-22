@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "graphBuilder.hpp"
+#include "../../src/neighbors/graph_builder.hpp"
 #include "models/vec3.hpp"
 
 #include <algorithm>

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "models/cellList.hpp"
+#include "../../src/neighbors/cell_list.hpp"
 #include <vector>
 
 // Check that CellList assigns particles to expected cells
