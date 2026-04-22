@@ -230,7 +230,7 @@ struct LinearLayer {
       throw std::runtime_error(
           "LinearLayer::forward received negative batch size");
     }
-    if (n_rows > 0 && input == nullptr) {
+    if (n_rows > 0 && in_dim > 0 && input == nullptr) {
       throw std::runtime_error("LinearLayer::forward received null input");
     }
 

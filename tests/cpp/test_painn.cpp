@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "models/edgeGraph.hpp"
 #include "painn/layout.hpp"
 #include "painn/linear_layer.hpp"
 #include "painn/message.hpp"
@@ -79,6 +80,83 @@ TEST(LinearLayerTest, ForwardComputesExpectedOutputs) {
   EXPECT_NEAR(batch_out[3], 6.5f, 1e-6f);
 }
 
+// dim == 0 ---------------------------------------------------------------
+
+TEST(LinearLayerTest, ZeroDimLayerForwardProducesEmptyOutput) {
+  // out_dim=0: output must always be empty.
+  LinearLayer layer_zero_out(3, 0);
+  std::vector<float> out;
+  const std::vector<float> input(3, 1.0f);
+  layer_zero_out.forward(input, out);
+  EXPECT_TRUE(out.empty());
+
+  // in_dim=0: output size == out_dim (zeroed, no weights applied).
+  LinearLayer layer_zero_in(0, 3);
+  layer_zero_in.forward(std::span<const float>{}, out);
+  EXPECT_EQ(out.size(), 3u);
+}
+
+TEST(LinearLayerTest, ZeroDimBatchForwardProducesEmptyOutput) {
+  LinearLayer layer(2, 3);
+  std::vector<float> out;
+  layer.forward(std::span<const float>{}, 0, out);
+  EXPECT_TRUE(out.empty());
+}
+
+// Runtime errors ---------------------------------------------------------
+
+TEST(LinearLayerTest, SetWeightThrowsOnWrongSize) {
+  LinearLayer layer(2, 3);
+  EXPECT_THROW(layer.set_weight({1.0f, 2.0f}), std::runtime_error);
+  EXPECT_THROW(layer.set_weight(std::vector<float>(7, 0.0f)),
+               std::runtime_error);
+}
+
+TEST(LinearLayerTest, SetBiasThrowsOnWrongSize) {
+  LinearLayer layer(2, 3);
+  EXPECT_THROW(layer.set_bias({1.0f, 2.0f}), std::runtime_error);
+  EXPECT_THROW(layer.set_bias(std::vector<float>(5, 0.0f)), std::runtime_error);
+}
+
+TEST(LinearLayerTest, ForwardThrowsOnInputSizeMismatch) {
+  LinearLayer layer(3, 2);
+  const std::vector<float> bad(2, 0.0f);
+  EXPECT_THROW(layer.forward(bad), std::runtime_error);
+}
+
+TEST(LinearLayerTest, BatchedForwardThrowsOnNegativeBatchSize) {
+  LinearLayer layer(2, 3);
+  const std::vector<float> input(4, 0.0f);
+  std::vector<float> out;
+  EXPECT_THROW(layer.forward(std::span<const float>(input), -1, out),
+               std::runtime_error);
+}
+
+TEST(LinearLayerTest, BatchedForwardThrowsOnSizeMismatch) {
+  LinearLayer layer(2, 3);
+  const std::vector<float> input(5, 0.0f);
+  std::vector<float> out;
+  EXPECT_THROW(layer.forward(std::span<const float>(input), 2, out),
+               std::runtime_error);
+}
+
+TEST(LinearLayerTest, ConcatForwardThrowsOnSizeMismatch) {
+  LinearLayer layer(4, 2);
+  const std::vector<float> left(3, 0.0f);
+  const std::vector<float> right(3, 0.0f);
+  std::vector<float> out;
+  EXPECT_THROW(layer.forward(std::span<const float>(left),
+                             std::span<const float>(right), out),
+               std::runtime_error);
+}
+
+TEST(LinearLayerTest, HalfSplitForwardThrowsOnOddInputDim) {
+  LinearLayer layer(3, 2);
+  const float a = 0.0f;
+  std::vector<float> out;
+  EXPECT_THROW(layer.forward(&a, &a, out), std::runtime_error);
+}
+
 TEST(PaiNNUpdateTest, LayerDimensionsMatchArchitecture) {
   PaiNNUpdate update(128);
 
@@ -90,6 +168,81 @@ TEST(PaiNNUpdateTest, LayerDimensionsMatchArchitecture) {
   EXPECT_EQ(update.linear1.out_dim, 128);
   EXPECT_EQ(update.linear2.in_dim, 128);
   EXPECT_EQ(update.linear2.out_dim, 384);
+}
+
+TEST(PaiNNUpdateTest, ForwardOutputSizesMatchAtomCount) {
+  const int F = 4;
+  const int N = 3;
+  PaiNNUpdate update(F);
+
+  const std::vector<float> s(N * F, 0.0f);
+  const std::vector<float> v(N * 3 * F, 0.0f);
+  std::vector<float> ds_atom, dv_atom;
+
+  update.forward(N, s, v, ds_atom, dv_atom);
+
+  EXPECT_EQ(ds_atom.size(), static_cast<std::size_t>(N * F));
+  EXPECT_EQ(dv_atom.size(), static_cast<std::size_t>(N * 3 * F));
+}
+
+// With all weights zero, gate a_ss = bias of linear2[2F..3F].
+// ds[atom] = a_ss + a_sv * dot(Uv, Vv). With zero weights, U=0, V=0 so dot=0.
+// Therefore ds[atom] = a_ss for every atom, independent of input.
+TEST(PaiNNUpdateTest, ZeroWeightsProduceBiasOnlyScalarDelta) {
+  const int F = 2;
+  const int N = 2;
+  PaiNNUpdate update(F);
+
+  // All weights zero (default), set only linear2 bias for a_ss slot (indices
+  // 2F..3F-1 in the 3F-wide output).
+  const float bias_val = 1.5f;
+  update.linear2.set_bias({0.0f, 0.0f,           // a_vv
+                           0.0f, 0.0f,           // a_sv
+                           bias_val, bias_val}); // a_ss
+
+  const std::vector<float> s(N * F, 1.0f);
+  const std::vector<float> v(N * 3 * F, 1.0f);
+  std::vector<float> ds_atom, dv_atom;
+
+  update.forward(N, s, v, ds_atom, dv_atom);
+
+  for (int atom = 0; atom < N; ++atom)
+    for (int f = 0; f < F; ++f)
+      EXPECT_NEAR(ds_atom[atom * F + f], bias_val, 1e-5f);
+}
+
+// With identity U and V, zero linear1/linear2 weights, and a_vv bias = k,
+// dv[atom] = k * Uv = k * v.  Doubling v must double dv.
+TEST(PaiNNUpdateTest, VectorDeltaScalesWithVectorInput) {
+  const int F = 2;
+  const int N = 1;
+  PaiNNUpdate update(F);
+
+  // U = identity
+  update.U.set_weight({1.0f, 0.0f, 0.0f, 1.0f});
+  update.U.set_bias({0.0f, 0.0f});
+  // V = identity
+  update.V.set_weight({1.0f, 0.0f, 0.0f, 1.0f});
+  update.V.set_bias({0.0f, 0.0f});
+  // a_vv bias = 1, others zero
+  const float k = 2.0f;
+  update.linear2.set_bias({k, k, 0.0f, 0.0f, 0.0f, 0.0f});
+
+  const std::vector<float> s(N * F, 0.0f);
+
+  // v1 = all 1s
+  const std::vector<float> v1(N * 3 * F, 1.0f);
+  std::vector<float> ds1, dv1;
+  update.forward(N, s, v1, ds1, dv1);
+
+  // v2 = all 2s
+  const std::vector<float> v2(N * 3 * F, 2.0f);
+  std::vector<float> ds2, dv2;
+  update.forward(N, s, v2, ds2, dv2);
+
+  ASSERT_EQ(dv1.size(), dv2.size());
+  for (std::size_t i = 0; i < dv1.size(); ++i)
+    EXPECT_NEAR(dv2[i], 2.0f * dv1[i], 1e-5f);
 }
 
 TEST(PaiNNMessageTest, ForwardOutputShapesMatchHiddenDim) {
