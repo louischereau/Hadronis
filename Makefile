@@ -103,7 +103,8 @@ bench-cpp:
 	mkdir -p build
 	cmake -S . -B build -DHADRONIS_ENABLE_SIMD=ON
 	cmake --build build
-	./build/src/hadronis_bench_geometry
+	./build/src/hadronis_bench_neighbors
+	./build/src/hadronis_bench_painn
 
 bench-memory: $(INSTALL_STAMP)
 	@echo "--- Benchmark: memory growth under repeated inference ---"

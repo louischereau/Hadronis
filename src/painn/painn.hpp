@@ -19,13 +19,13 @@ struct PaINN {
   LinearLayer linear1;
   LinearLayer linear2;
 
-  PaINN(int hidden_dim, int n_interactions, int n_rbf)
+  PaINN(int hidden_dim, int n_interactions, int n_rbf, int n_threads = 1)
       : hidden_dim(hidden_dim), n_interactions(n_interactions), n_rbf(n_rbf),
         embedding_layer(100, hidden_dim), linear1(hidden_dim, hidden_dim),
         linear2(hidden_dim, 1) {
     interaction_layers.reserve(static_cast<std::size_t>(n_interactions));
     for (int i = 0; i < n_interactions; ++i)
-      interaction_layers.emplace_back(hidden_dim, n_rbf);
+      interaction_layers.emplace_back(hidden_dim, n_rbf, n_threads);
   }
 
   float predict(const int *atomic_numbers, int n_atoms, const EdgeGraph &graph,

@@ -23,14 +23,14 @@ struct PaiNNMessage {
   LinearLayer mlp_linear2; // [F -> 3F]
   LinearLayer mlp_linear3; // [K -> 3F] learned RBF filter
 
-  PaiNNMessage(int hidden_dim, int n_rbf)
+  PaiNNMessage(int hidden_dim, int n_rbf, int n_threads = 1)
       : hidden_dim(hidden_dim), n_rbf(n_rbf),
         mlp_linear1(hidden_dim, hidden_dim),
         mlp_linear2(hidden_dim, 3 * hidden_dim),
         mlp_linear3(n_rbf, 3 * hidden_dim), main_scratch_(hidden_dim),
         thread_pool_(
             std::make_unique<PersistentThreadPool<PaiNNMessageScratch>>(
-                1u,
+                static_cast<unsigned>(n_threads),
                 [hidden_dim]() { return PaiNNMessageScratch(hidden_dim); })) {}
 
 private:

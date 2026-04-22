@@ -9,8 +9,8 @@ struct PaINNInteraction {
   PaiNNUpdate update_layer;
   int hidden_dim;
 
-  PaINNInteraction(int hidden_dim, int n_rbf)
-      : hidden_dim(hidden_dim), message_layer(hidden_dim, n_rbf),
+  PaINNInteraction(int hidden_dim, int n_rbf, int n_threads = 1)
+      : hidden_dim(hidden_dim), message_layer(hidden_dim, n_rbf, n_threads),
         update_layer(hidden_dim) {}
 
   void forward(int natoms, std::vector<float> &s, std::vector<float> &v,

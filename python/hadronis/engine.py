@@ -14,13 +14,13 @@ class Engine:
         weight_path: str,
         cutoff: float = 5.0,
         max_neighbors: int = 64,
-        n_threads: int = 16,
+        n_threads: int = 1,
     ) -> None:
         self.cutoff = float(cutoff)
         self.max_neighbors = int(max_neighbors)
         self.n_threads = int(n_threads)
         self._engine = _lowlevel.HadronisEngine(
-            weight_path, self.cutoff, self.max_neighbors
+            weight_path, self.cutoff, self.max_neighbors, self.n_threads
         )
 
     def predict(

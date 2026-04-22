@@ -22,6 +22,7 @@ class HadronisEngine {
   PaINN painn_;
   float r_cut_;
   int max_neighbors_;
+  int n_threads_;
   // Cached construction parameters: GraphBuilder is expensive to rebuild
   // (allocates ~420 KB of edge vectors). When N and box_size are stable
   // across calls (the common case), reuse the existing object.
@@ -30,9 +31,9 @@ class HadronisEngine {
 
 public:
   HadronisEngine(const std::string &weight_path, float cutoff,
-                 int max_neighbors)
-      : painn_(kHiddenDim, 3, kNumRbf), r_cut_(cutoff),
-        max_neighbors_(max_neighbors) {
+                 int max_neighbors, int n_threads = 1)
+      : painn_(kHiddenDim, 3, kNumRbf, n_threads), r_cut_(cutoff),
+        max_neighbors_(max_neighbors), n_threads_(n_threads) {
     load_weights(weight_path, painn_);
   }
 
@@ -177,8 +178,9 @@ private:
 
 PYBIND11_MODULE(_lowlevel, m) {
   py::class_<HadronisEngine>(m, "HadronisEngine")
-      .def(py::init<const std::string &, float, int>(), py::arg("weight_path"),
-           py::arg("cutoff") = 5.0f, py::arg("max_neighbors") = 64)
+      .def(py::init<const std::string &, float, int, int>(),
+           py::arg("weight_path"), py::arg("cutoff") = 5.0f,
+           py::arg("max_neighbors") = 64, py::arg("n_threads") = 1)
       .def("predict", &HadronisEngine::predict, py::arg("atomic_numbers"),
            py::arg("positions"));
 }
