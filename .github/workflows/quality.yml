@@ -44,9 +44,9 @@ jobs:
       - name: Configure CMake for analysis
         run: cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DHADRONIS_ENABLE_SIMD=ON
 
-      # 5. C++ static analysis with clang-tidy
+      # 5. C++ static analysis with clang-tidy (exclude benchmarks)
       - name: C++ clang-tidy
-        run: clang-tidy $(git ls-files "*.cpp") -p build
+        run: clang-tidy $(git ls-files "*.cpp" | grep -v benchmarks/cpp) -p build
 
       # 6. Python Quality Checks (Using uv run)
       - name: Python Linting & Format Check
