@@ -5,9 +5,12 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(Threads REQUIRED)
+# Set global release flags before any subdirectory
+if(NOT MSVC)
+    add_compile_options(-O3 -DNDEBUG -march=native)
+endif()
 
-# Find pybind11
+find_package(Threads REQUIRED)
 find_package(pybind11 REQUIRED)
 
 include(FetchContent)

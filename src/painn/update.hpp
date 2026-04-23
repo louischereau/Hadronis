@@ -90,7 +90,9 @@ public:
             std::sqrt(vx[f] * vx[f] + vy[f] * vy[f] + vz[f] * vz[f] + 1e-8f);
       }
 
-      linear1.forward(stack_norm, s.data() + s_base, scratch.hidden);
+      linear1.forward(std::span<const float>(stack_norm, hidden_dim),
+                      std::span<const float>(s.data() + s_base, hidden_dim),
+                      scratch.hidden);
       silu_inplace(scratch.hidden);
       linear2.forward(scratch.hidden, scratch.gates);
 

@@ -23,11 +23,10 @@ from dataclasses import dataclass
 from typing import Optional
 
 import torch
-from torch import nn
-from torch import Tensor
+from torch import Tensor, nn
+from torch_cluster import radius_graph
 from torch_geometric.data import Data
 from torch_geometric.nn import global_add_pool
-from torch_cluster import radius_graph
 from torch_scatter import scatter_add
 
 
@@ -35,7 +34,7 @@ from torch_scatter import scatter_add
 class PaiNNConfig:
     hidden_dim: int = 128
     n_interactions: int = 3
-    n_rbf: int = 32
+    n_rbf: int = 20
     cutoff: float = 5.0
     max_z: int = 100
 
@@ -101,7 +100,9 @@ class PaiNNInteraction(nn.Module):
         self.to_scalar = nn.Linear(hidden_dim * 2, hidden_dim)
         self.to_vector = nn.Linear(hidden_dim * 2, hidden_dim)
 
-    def forward(self, s: Tensor, v: Tensor, pos: Tensor, edge_index: Tensor) -> tuple[Tensor, Tensor]:
+    def forward(
+        self, s: Tensor, v: Tensor, pos: Tensor, edge_index: Tensor
+    ) -> tuple[Tensor, Tensor]:
         """Apply one interaction step.
 
         s: [N, F]
@@ -205,7 +206,9 @@ class PaiNNModel(nn.Module):
 
         # Initial scalar features from atomic numbers; vector features start at zero.
         s = self.embedding(z.clamp(max=self.config.max_z - 1))  # [N, F]
-        v = torch.zeros(z.size(0), 3, self.config.hidden_dim, device=z.device)  # [N, 3, F]
+        v = torch.zeros(
+            z.size(0), 3, self.config.hidden_dim, device=z.device
+        )  # [N, 3, F]
 
         for interaction in self.interactions:
             s, v = interaction(s, v, pos, edge_index)

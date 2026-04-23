@@ -31,10 +31,12 @@ TEST(LinearLayerTest, ConcatForwardMatchesFlatInput) {
   layer.set_bias({0.25f, -1.25f});
 
   const std::vector<float> full = {1.0f, -2.0f, 0.5f, 3.0f};
-  const std::vector<float> expected = layer.forward(full);
+  std::vector<float> expected;
+  layer.forward(full, expected);
 
   std::vector<float> fused;
-  layer.forward(full.data(), full.data() + 2, fused);
+  layer.forward(std::span<const float>(full.data(), 2),
+                std::span<const float>(full.data() + 2, 2), fused);
 
   ASSERT_EQ(fused.size(), expected.size());
   EXPECT_NEAR(fused[0], expected[0], 1e-6f);
@@ -47,7 +49,8 @@ TEST(LinearLayerTest, ForwardComputesExpectedOutputs) {
   layer.set_bias({0.5f, -1.0f});
 
   const std::vector<float> single = {1.0f, 0.0f, -1.0f};
-  const std::vector<float> single_out = layer.forward(single);
+  std::vector<float> single_out;
+  layer.forward(single, single_out);
 
   ASSERT_EQ(single_out.size(), 2u);
   EXPECT_NEAR(single_out[0], -1.5f, 1e-6f);
@@ -99,7 +102,8 @@ TEST(LinearLayerTest, SetBiasThrowsOnWrongSize) {
 TEST(LinearLayerTest, ForwardThrowsOnInputSizeMismatch) {
   LinearLayer layer(3, 2);
   const std::vector<float> bad(2, 0.0f);
-  EXPECT_THROW(layer.forward(bad), std::runtime_error);
+  std::vector<float> out;
+  EXPECT_THROW(layer.forward(bad, out), std::runtime_error);
 }
 
 TEST(LinearLayerTest, BatchedForwardThrowsOnNegativeBatchSize) {
@@ -132,5 +136,8 @@ TEST(LinearLayerTest, HalfSplitForwardThrowsOnOddInputDim) {
   LinearLayer layer(3, 2);
   const float a = 0.0f;
   std::vector<float> out;
-  EXPECT_THROW(layer.forward(&a, &a, out), std::runtime_error);
+  // Simulate two spans of size 1 (odd total, should throw)
+  EXPECT_THROW(layer.forward(std::span<const float>(&a, 1),
+                             std::span<const float>(&a, 1), out),
+               std::runtime_error);
 }

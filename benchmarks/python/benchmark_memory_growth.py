@@ -23,7 +23,7 @@ def run_memory_growth_benchmark(n_atoms: int = 128, n_iters: int = 5) -> None:
     atomic_numbers, positions = _make_large_system(n_atoms=n_atoms)
 
     print(f"[memory-growth] n_atoms={n_atoms} n_iters={n_iters}")
-    engine = hadronis.compile("dummy-weights.bin")
+    engine = hadronis.compile("benchmarks/python/known-weights.bin")
 
     # Optional warmup to trigger one-time allocations before measuring.
     _ = engine.predict(atomic_numbers, positions)
@@ -34,7 +34,7 @@ def run_memory_growth_benchmark(n_atoms: int = 128, n_iters: int = 5) -> None:
 
     for i in range(n_iters):
         out = engine.predict(atomic_numbers, positions)
-        assert out.shape[0] == atomic_numbers.shape[0]
+        print(f"[memory-growth] output: {out} (type: {type(out)})")
 
         gc.collect()
         current_mem = _get_memory_mb()

@@ -98,11 +98,15 @@ bench: $(PROFILE_INSTALL_STAMP)
 	@echo
 	@echo "--- Benchmark: thread-scaling ---"
 	$(UV) run python benchmarks/python/benchmark_thread_scaling.py
+	@echo
+	@echo "--- Benchmark: memory growth under repeated inference ---"
+	$(UV) run python benchmarks/python/benchmark_memory_growth.py --n-atoms 128 --n-iters 5
 
 bench-cpp:
+	rm -rf build
 	mkdir -p build
-	cmake -S . -B build -DHADRONIS_ENABLE_SIMD=ON
-	cmake --build build
+	cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+	cmake --build build -j$(shell nproc)
 	./build/src/hadronis_bench_neighbors
 	./build/src/hadronis_bench_painn
 

@@ -1,5 +1,7 @@
+
 #pragma once
 
+#include <Eigen/Dense>
 #include <cstddef>
 #include <span>
 #include <stdexcept>
@@ -24,85 +26,73 @@
 #define HADRONIS_ASSUME(cond) ((void)0)
 #endif
 
-// Free helper for the hot linear kernel so the compiler only sees raw pointers.
-inline void linear_layer_compute(const float *HADRONIS_RESTRICT input,
-                                 const float *HADRONIS_RESTRICT weight_ptr,
-                                 const float *HADRONIS_RESTRICT bias_ptr,
-                                 float *HADRONIS_RESTRICT out_ptr, int n_rows,
-                                 int in_dim, int out_dim) {
+// Eigen-based batched linear layer compute
+inline void linear_layer_compute(const float *input, const float *weight_ptr,
+                                 const float *bias_ptr, float *out_ptr,
+                                 int n_rows, int in_dim, int out_dim) {
   if (n_rows == 0 || in_dim == 0 || out_dim == 0) {
     return;
   }
-
-  HADRONIS_ASSUME(in_dim > 0);
-  HADRONIS_ASSUME(out_dim > 0);
-  HADRONIS_ASSUME(n_rows > 0);
-
-  for (int row = 0; row < n_rows; ++row) {
-    const float *HADRONIS_RESTRICT in_row = input + row * in_dim;
-    float *HADRONIS_RESTRICT out_row = out_ptr + row * out_dim;
-
-    for (int out_idx = 0; out_idx < out_dim; ++out_idx) {
-      float acc = bias_ptr[out_idx];
-      const float *HADRONIS_RESTRICT w_row = weight_ptr + out_idx * in_dim;
-
-#if defined(__clang__)
-#pragma clang loop vectorize(enable) interleave(enable)
-#elif defined(__GNUG__)
-#pragma GCC ivdep
-#endif
-      for (int in_idx = 0; in_idx < in_dim; ++in_idx) {
-        acc += w_row[in_idx] * in_row[in_idx];
-      }
-
-      out_row[out_idx] = acc;
-    }
-  }
+  Eigen::Map<const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic,
+                                 Eigen::RowMajor>>
+      in_mat(input, n_rows, in_dim);
+  Eigen::Map<const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic,
+                                 Eigen::RowMajor>>
+      w_mat(weight_ptr, out_dim, in_dim);
+  Eigen::Map<const Eigen::VectorXf> b_vec(bias_ptr, out_dim);
+  Eigen::Map<
+      Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>
+      out_mat(out_ptr, n_rows, out_dim);
+  out_mat = in_mat * w_mat.transpose();
+  out_mat.rowwise() += b_vec.transpose();
 }
 
-inline void
-linear_layer_compute_concat(const float *HADRONIS_RESTRICT left, int left_dim,
-                            const float *HADRONIS_RESTRICT right, int right_dim,
-                            const float *HADRONIS_RESTRICT weight_ptr,
-                            const float *HADRONIS_RESTRICT bias_ptr,
-                            float *HADRONIS_RESTRICT out_ptr, int out_dim) {
+inline void linear_layer_compute_concat(const float *left, int left_dim,
+                                        const float *right, int right_dim,
+                                        const float *weight_ptr,
+                                        const float *bias_ptr, float *out_ptr,
+                                        int out_dim) {
   const int in_dim = left_dim + right_dim;
   if (in_dim == 0 || out_dim == 0) {
     return;
   }
-
-  HADRONIS_ASSUME(in_dim > 0);
-  HADRONIS_ASSUME(out_dim > 0);
-
-  for (int out_idx = 0; out_idx < out_dim; ++out_idx) {
-    float acc = bias_ptr[out_idx];
-    const float *HADRONIS_RESTRICT w_row = weight_ptr + out_idx * in_dim;
-
-#if defined(__clang__)
-#pragma clang loop vectorize(enable) interleave(enable)
-#elif defined(__GNUG__)
-#pragma GCC ivdep
-#endif
-    for (int in_idx = 0; in_idx < left_dim; ++in_idx) {
-      acc += w_row[in_idx] * left[in_idx];
-    }
-
-#if defined(__clang__)
-#pragma clang loop vectorize(enable) interleave(enable)
-#elif defined(__GNUG__)
-#pragma GCC ivdep
-#endif
-    for (int in_idx = 0; in_idx < right_dim; ++in_idx) {
-      acc += w_row[left_dim + in_idx] * right[in_idx];
-    }
-
-    out_ptr[out_idx] = acc;
+  Eigen::VectorXf concat(in_dim);
+  if (left_dim > 0) {
+    Eigen::Map<const Eigen::VectorXf> lvec(left, left_dim);
+    concat.head(left_dim) = lvec;
   }
+  if (right_dim > 0) {
+    Eigen::Map<const Eigen::VectorXf> rvec(right, right_dim);
+    concat.tail(right_dim) = rvec;
+  }
+  Eigen::Map<const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic,
+                                 Eigen::RowMajor>>
+      w_mat(weight_ptr, out_dim, in_dim);
+  Eigen::Map<const Eigen::VectorXf> b_vec(bias_ptr, out_dim);
+  Eigen::Map<Eigen::VectorXf> out_vec(out_ptr, out_dim);
+  out_vec = w_mat * concat + b_vec;
 }
 
 // Linear layer parameters and forward pass over flat contiguous tensors.
 // Weight layout is row-major: [out_dim, in_dim].
 struct LinearLayer {
+  // ...existing code...
+
+  // Restore single-row forward overloads for compatibility with existing code
+  void forward(std::span<const float> input, std::vector<float> &output) const {
+    if (input.size() != static_cast<std::size_t>(in_dim)) {
+      throw std::runtime_error("LinearLayer::forward input shape mismatch");
+    }
+    forward(input, 1, output);
+  }
+
+  void forward(const std::vector<float> &input,
+               std::vector<float> &output) const {
+    if (input.size() != static_cast<std::size_t>(in_dim)) {
+      throw std::runtime_error("LinearLayer::forward input shape mismatch");
+    }
+    forward(std::span<const float>(input.data(), input.size()), 1, output);
+  }
   int in_dim;
   int out_dim;
   std::vector<float> weight; // [out_dim * in_dim]
@@ -132,23 +122,7 @@ struct LinearLayer {
     bias = b;
   }
 
-  void forward(std::span<const float> input, std::vector<float> &output) const {
-    if (input.size() != static_cast<std::size_t>(in_dim)) {
-      throw std::runtime_error("LinearLayer::forward input shape mismatch");
-    }
-
-    forward(input.data(), 1, output);
-  }
-
-  std::vector<float> forward(std::span<const float> input) const {
-    std::vector<float> output;
-    forward(input, output);
-    return output;
-  }
-
-  std::vector<float> forward(const std::vector<float> &input) const {
-    return forward(std::span<const float>(input.data(), input.size()));
-  }
+  // Removed single-row forward pass and related overloads (not used in repo)
 
   void forward(std::span<const float> input, int n_rows,
                std::vector<float> &output) const {
@@ -156,15 +130,19 @@ struct LinearLayer {
       throw std::runtime_error(
           "LinearLayer::forward received negative batch size");
     }
-
     const std::size_t expected =
         static_cast<std::size_t>(n_rows) * static_cast<std::size_t>(in_dim);
     if (input.size() != expected) {
       throw std::runtime_error(
           "LinearLayer::forward batched input shape mismatch");
     }
-
-    forward(input.data(), n_rows, output);
+    if (output.size() !=
+        static_cast<std::size_t>(n_rows) * static_cast<std::size_t>(out_dim)) {
+      output.resize(static_cast<std::size_t>(n_rows) *
+                    static_cast<std::size_t>(out_dim));
+    }
+    linear_layer_compute(input.data(), weight.data(), bias.data(),
+                         output.data(), n_rows, in_dim, out_dim);
   }
 
   void forward(const std::vector<float> &input, int n_rows,
@@ -179,66 +157,14 @@ struct LinearLayer {
       throw std::runtime_error(
           "LinearLayer::forward concatenated input shape mismatch");
     }
-
-    forward(left.data(), static_cast<int>(left.size()), right.data(),
-            static_cast<int>(right.size()), output);
+    if (output.size() != static_cast<std::size_t>(out_dim)) {
+      output.resize(static_cast<std::size_t>(out_dim));
+    }
+    linear_layer_compute_concat(left.data(), static_cast<int>(left.size()),
+                                right.data(), static_cast<int>(right.size()),
+                                weight.data(), bias.data(), output.data(),
+                                out_dim);
   }
 
-  void forward(const float *HADRONIS_RESTRICT left,
-               const float *HADRONIS_RESTRICT right,
-               std::vector<float> &output) const {
-    if (in_dim % 2 != 0) {
-      throw std::runtime_error(
-          "LinearLayer::forward half-split requires even input dimension");
-    }
-
-    const int half_dim = in_dim / 2;
-    forward(left, half_dim, right, half_dim, output);
-  }
-
-  void forward(const float *HADRONIS_RESTRICT left, int left_dim,
-               const float *HADRONIS_RESTRICT right, int right_dim,
-               std::vector<float> &output) const {
-    if (left_dim < 0 || right_dim < 0) {
-      throw std::runtime_error(
-          "LinearLayer::forward received negative split dimension");
-    }
-    if (left_dim + right_dim != in_dim) {
-      throw std::runtime_error(
-          "LinearLayer::forward concatenated input shape mismatch");
-    }
-    if ((left_dim > 0 && left == nullptr) ||
-        (right_dim > 0 && right == nullptr)) {
-      throw std::runtime_error(
-          "LinearLayer::forward received null concatenated input");
-    }
-
-    const std::size_t required = static_cast<std::size_t>(out_dim);
-    if (output.size() != required) {
-      output.resize(required);
-    }
-
-    linear_layer_compute_concat(left, left_dim, right, right_dim, weight.data(),
-                                bias.data(), output.data(), out_dim);
-  }
-
-  void forward(const float *HADRONIS_RESTRICT input, int n_rows,
-               std::vector<float> &output) const {
-    if (n_rows < 0) {
-      throw std::runtime_error(
-          "LinearLayer::forward received negative batch size");
-    }
-    if (n_rows > 0 && in_dim > 0 && input == nullptr) {
-      throw std::runtime_error("LinearLayer::forward received null input");
-    }
-
-    const std::size_t required =
-        static_cast<std::size_t>(n_rows) * static_cast<std::size_t>(out_dim);
-    if (output.size() != required) {
-      output.resize(required);
-    }
-
-    linear_layer_compute(input, weight.data(), bias.data(), output.data(),
-                         n_rows, in_dim, out_dim);
-  }
+  // Removed pointer-based and half-split forward overloads (not used in repo)
 };

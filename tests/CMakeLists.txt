@@ -1,3 +1,4 @@
+find_package(Eigen3 REQUIRED)
 cmake_minimum_required(VERSION 3.15)
 
 include(FetchContent)
@@ -36,6 +37,7 @@ target_link_libraries(hadronis_gtest
     PRIVATE
         GTest::gtest_main
         Threads::Threads
+        Eigen3::Eigen
 )
 
 # When built with Clang, enable coverage instrumentation on the C++ test
